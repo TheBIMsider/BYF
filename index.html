@@ -14,7 +14,7 @@
       rel="apple-touch-icon"
       href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiBmaWxsPSIjMDA3YmZmIiByeD0iMjQiLz4KPHBhdGggZD0iTTk2IDQ4TDEyMCA3MkgxNDRWMTIwSDEyMEwxMDggMTA4TDk2IDEyMEw4NCA1NkwxMzIgNzhMOTYgNDhaIiBmaWxsPSJ3aGl0ZSIvPgo8Y2lyY2xlIGN4PSI5NiIgY3k9IjE0NCIgcj0iMTIiIGZpbGw9IndoaXRlIi8+Cjx0ZXh0IHg9Ijk2IiB5PSIxNzQiIGZpbGw9IndoaXRlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZm9udC13ZWlnaHQ9ImJvbGQiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkJZRjwvdGV4dD4KPC9zdmc+"
     />
-    <title>BribeYourselfFit - Your Personal Fitness Tracker</title>
+    <title>BribeYourselfFit - JSONBin Cloud Version</title>
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#007bff" />
@@ -27,14 +27,24 @@
     <!-- Header -->
     <header class="header">
       <div class="header-content">
-        <div class="logo">BribeYourselfFit</div>
-        <button
-          class="theme-toggle"
-          id="themeToggle"
-          aria-label="Toggle dark mode"
-        >
-          🌙 Dark Mode
-        </button>
+        <div class="logo">BribeYourselfFit <span style="font-size: 0.7em; color: var(--accent-success);">Cloud</span></div>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+          <button
+            class="theme-toggle"
+            id="themeToggle"
+            aria-label="Toggle dark mode"
+          >
+            🌙 Dark Mode
+          </button>
+          <button
+            class="btn btn-small"
+            id="settingsBtn"
+            style="display: none;"
+            onclick="app.showSettings()"
+          >
+            ⚙️ Settings
+          </button>
+        </div>
       </div>
     </header>
 
@@ -42,13 +52,77 @@
       <!-- Setup Screen -->
       <div id="setupScreen" class="setup-form">
         <div class="setup-header">
-          <h1 class="setup-title">Welcome to BribeYourselfFit!</h1>
-          <p class="setup-subtitle">Let's set up your personal fitness goals</p>
+          <h1 class="setup-title">Welcome to BribeYourselfFit Cloud!</h1>
+          <p class="setup-subtitle">Let's set up your cloud-synced fitness goals</p>
         </div>
 
+        <!-- JSONBin API Setup -->
         <div class="card">
           <div class="card-header">
-            <h2 class="card-title">Your Profile</h2>
+            <h2 class="card-title">🌐 Cloud Storage Setup</h2>
+          </div>
+          
+          <div style="margin-bottom: 1.5rem; padding: 1rem; background-color: var(--bg-primary); border-radius: 8px; border: 2px solid var(--accent-warning);">
+            <h4 style="color: var(--accent-warning); margin-bottom: 0.5rem;">📋 Setup Instructions:</h4>
+            <ol style="margin-left: 1.5rem; color: var(--text-secondary);">
+              <li>Visit <a href="https://jsonbin.io" target="_blank" style="color: var(--accent-primary);">jsonbin.io</a></li>
+              <li>Create a free account (10,000 requests/month)</li>
+              <li>Go to API Keys section</li>
+              <li>Create a new API key with "Create, Read, Update" permissions</li>
+              <li>Copy the API key and paste it below</li>
+            </ol>
+          </div>
+
+          <form id="apiSetupForm">
+            <div class="form-group">
+              <label for="jsonbinApiKey" class="form-label">
+                JSONBin.io API Key
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">(Required for cloud sync)</span>
+              </label>
+              <input
+                type="password"
+                id="jsonbinApiKey"
+                class="form-input"
+                placeholder="$2a$10$..."
+                required
+              />
+              <small style="color: var(--text-secondary); font-size: 0.8rem;">
+                🔒 Your API key is stored locally and never shared
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label for="binName" class="form-label">
+                Storage Name
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">(Give your data a friendly name)</span>
+              </label>
+              <input
+                type="text"
+                id="binName"
+                class="form-input"
+                placeholder="My Fitness Journey 2025"
+                maxlength="50"
+              />
+              <small style="color: var(--text-secondary); font-size: 0.8rem;">
+                Optional: Will default to "BYF-Data-[timestamp]" if empty
+              </small>
+            </div>
+
+            <button
+              type="submit"
+              class="btn btn-primary"
+              style="width: 100%; margin-top: 1rem"
+            >
+              🔗 Connect to Cloud Storage
+            </button>
+          </form>
+        </div>
+
+        <!-- User Profile Setup -->
+        <div class="card" id="profileSetupCard" style="opacity: 0.5; pointer-events: none;">
+          <div class="card-header">
+            <h2 class="card-title">👤 Your Fitness Profile</h2>
+            <span style="color: var(--text-secondary); font-size: 0.9rem;">Complete cloud setup first</span>
           </div>
 
           <form id="setupForm">
@@ -130,13 +204,50 @@
 
             <button
               type="submit"
-              class="btn btn-primary"
+              class="btn btn-success"
               style="width: 100%; margin-top: 1rem"
+              disabled
             >
-              Start My Fitness Journey
+              🚀 Start My Cloud Fitness Journey
             </button>
           </form>
         </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+      <div class="modal-content" style="max-width: 600px;">
+        <h2 class="modal-title">⚙️ Settings</h2>
+        
+        <div style="margin-bottom: 2rem;">
+          <h3 style="margin-bottom: 1rem;">🌐 Cloud Storage</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <span>Status:</span>
+            <span id="cloudStatus" style="color: var(--accent-success);">✅ Connected</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <span>Storage Name:</span>
+            <span id="currentBinName">--</span>
+          </div>
+          <button class="btn btn-small btn-danger" onclick="app.resetApiKey()">
+            🔄 Change API Key
+          </button>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+          <h3 style="margin-bottom: 1rem;">📊 Data Management</h3>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <button class="btn btn-small" onclick="app.exportData()">
+              📥 Export Data
+            </button>
+            <button class="btn btn-small btn-danger" onclick="app.resetAllData()">
+              🗑️ Reset All Data
+            </button>
+          </div>
+        </div>
+
+        <button class="modal-btn" onclick="app.closeSettings()">Close</button>
       </div>
     </div>
 
@@ -158,7 +269,10 @@
             <div class="card">
               <div class="card-header">
                 <h2 class="card-title">Today's Log</h2>
-                <span id="currentDate"></span>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span id="currentDate"></span>
+                  <span id="syncStatus" style="font-size: 0.8rem; color: var(--accent-success);">☁️</span>
+                </div>
               </div>
 
               <form id="dailyLogForm">
@@ -291,7 +405,7 @@
                   class="btn btn-success"
                   style="width: 100%; margin-top: 1rem"
                 >
-                  Save Today's Log
+                  💾 Save to Cloud
                 </button>
               </form>
             </div>
