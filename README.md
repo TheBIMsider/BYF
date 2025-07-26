@@ -4,6 +4,19 @@
 
 This version uses [JSONBin.io](https://jsonbin.io) for cloud storage, allowing your fitness data to sync across devices and be accessible anywhere.
 
+## 🤖 **Built with AI-Assisted Development**
+
+This cloud version was developed using cutting-edge AI-powered development tools:
+
+- ⚡ **Vide Coding Sessions**: Live AI pair programming for rapid development
+- 🧠 **Claude (Anthropic)**: API integration, cloud architecture, and documentation
+- 👨‍💻 **GitHub Copilot**: Intelligent code completion and suggestions
+- 🏗️ **Human Expertise**: AECO/BIM domain knowledge by [TheBIMsider](https://bio.link/thebimsider)
+
+This demonstrates how AI tools enable domain experts to build sophisticated cloud-integrated applications with modern web technologies and API patterns.
+
+---
+
 ## 🚀 Quick Setup
 
 ### 1. Get Your JSONBin.io API Key
