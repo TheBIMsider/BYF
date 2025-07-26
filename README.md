@@ -276,9 +276,12 @@ BYF/
 ## 🆘 **Support**
 
 ### **Documentation**
-- 📖 [Setup Guides](./docs/setup/) *(coming soon)*
-- 🎨 [Customization Guide](./docs/customization/) *(coming soon)*
-- 🔌 [API Integration](./docs/api/) *(coming soon)*
+- 📖 **Branch READMEs**: Each version has detailed setup instructions
+- 🏠 **localStorage Version**: [Setup Guide](../../tree/main)
+- 🌐 **JSONBin Version**: [Setup Guide](../../tree/jsonbin-version)
+- 📊 **Airtable Version**: Coming Soon
+- 🔥 **Firebase Version**: Comming Soon
+- 🔌 **API Integration**: *(guides coming with each backend)*
 
 ### **Community**
 - 🐛 **Bug Reports**: [Create GitHub Issue](https://github.com/TheBIMsider/BYF/issues)
