@@ -230,7 +230,7 @@ resetData()
 
 ### Documentation
 - [JSONBin.io API Docs](https://jsonbin.io/docs)
-- [GitHub Issues](https://github.com/yourusername/BribeYourselfFit/issues)
+- [GitHub Issues](https://github.com/TheBIMsider/BYF/issues)
 
 ### Getting Help
 1. Check this README for common solutions
