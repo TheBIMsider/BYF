@@ -206,12 +206,41 @@ class BribeYourselfFit {
   handleSetup(e) {
     e.preventDefault();
 
-    const formData = new FormData(e.target);
-    const startingWeight = parseFloat(formData.get('startingWeight'));
-    const goalWeight = parseFloat(formData.get('goalWeight'));
-    const dailySteps = parseInt(formData.get('dailySteps'));
-    const dailyExercise = parseInt(formData.get('dailyExercise'));
-    const dailyWater = parseFloat(formData.get('dailyWater'));
+const formData = new FormData(e.target);
+
+// Get raw values from form
+const rawValues = {
+  startingWeight: formData.get('startingWeight'),
+  goalWeight: formData.get('goalWeight'),
+  dailySteps: formData.get('dailySteps'),
+  dailyExercise: formData.get('dailyExercise'),
+  dailyWater: formData.get('dailyWater')
+};
+
+// Debug: Log raw form values
+console.log('Raw form values:', rawValues);
+
+// Parse with proper validation
+const startingWeight = parseFloat(rawValues.startingWeight);
+const goalWeight = parseFloat(rawValues.goalWeight);
+const dailySteps = parseInt(rawValues.dailySteps);
+const dailyExercise = parseInt(rawValues.dailyExercise);
+const dailyWater = parseFloat(rawValues.dailyWater);
+
+// Debug: Log parsed values
+console.log('Parsed values:', {
+  startingWeight, goalWeight, dailySteps, dailyExercise, dailyWater
+});
+
+// Check for NaN values
+if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) || 
+    isNaN(dailyExercise) || isNaN(dailyWater)) {
+  console.error('Form parsing failed - NaN values detected:', {
+    startingWeight, goalWeight, dailySteps, dailyExercise, dailyWater
+  });
+  this.showError('Invalid form data. Please check all fields have valid numbers.');
+  return;
+}
 
     // Validate input
     if (
