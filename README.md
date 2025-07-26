@@ -240,14 +240,6 @@ BYF/
 | iOS Safari | 13+ | ✅ PWA installable |
 | Chrome Mobile | 80+ | ✅ PWA installable |
 
-## 🎉 **Success Stories**
-
-> "Lost 25 lbs using BribeYourselfFit! The streak system kept me motivated when other apps failed." - *Sarah K.*
-
-> "Perfect for learning web development. The code is so well-documented that I understood every part." - *Alex M.*
-
-> "Finally, a fitness tracker I actually own. No subscriptions, no data selling, just pure tracking." - *Mike R.*
-
 ## 🗺️ **Roadmap**
 
 ### **Phase 4: Backend Integrations** ✅
