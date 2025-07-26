@@ -2362,24 +2362,6 @@ if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) ||
 /**
  * Service Worker Registration for PWA capabilities
  */
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      const registration = await navigator.serviceWorker.register('./sw.js');
-      console.log(
-        'Service Worker registered successfully:',
-        registration.scope
-      );
-
-      // Listen for updates
-      registration.addEventListener('updatefound', () => {
-        console.log('Service Worker update found');
-      });
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
-    }
-  });
-}
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
