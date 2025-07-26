@@ -145,8 +145,8 @@ git checkout firebase-version
 ### **Local Development**
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/BYF.git
-cd BYF
+git clone https://github.com/theBIMsider/BribeYourselfFit.git
+cd BribeYourselfFit
 
 # Choose your branch
 git checkout main                    # localStorage version
@@ -267,8 +267,8 @@ BYF/
 - 🔌 [API Integration](./docs/api/) *(coming soon)*
 
 ### **Community**
-- 🐛 **Bug Reports**: [Create GitHub Issue](https://github.com/yourusername/BYF/issues)
-- 💡 **Feature Requests**: [Discussions](https://github.com/yourusername/BYF/discussions)
+- 🐛 **Bug Reports**: [Create GitHub Issue](https://github.com/TheBIMsider/BribeYourselfFit/issues)
+- 💡 **Feature Requests**: [Discussions](https://github.com/TheBIMsider/BribeYourselfFit/discussions)
 - 💬 **Questions**: Check issues or start a discussion
 
 ### **Getting Help**
@@ -284,7 +284,7 @@ BYF/
 
 BSD-3-Clause License - see [LICENSE](LICENSE) file for details.
 
-**TL;DR**: You can use, modify, and distribute this freely. Just keep the license notice and don't use our name to promote your changes.
+**TL;DR**: You can use, modify, and distribute this freely. Just keep the license notice.
 
 ## 🙏 **Acknowledgments**
 
@@ -309,7 +309,7 @@ If BribeYourselfFit helps you on your fitness journey, please star this reposito
 
 **Questions?** **Problems?** **Success stories?** 
 
-We'd love to hear from you! [Create an issue](https://github.com/yourusername/BYF/issues) or [start a discussion](https://github.com/yourusername/BYF/discussions).
+We'd love to hear from you! [Create an issue](https://github.com/TheBIMsider/BribeYourselfFit/issues) or [start a discussion](https://github.com/TheBIMsider/BribeYourselfFit/discussions).
 
 ---
 
