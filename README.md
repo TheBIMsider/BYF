@@ -121,7 +121,7 @@ git checkout airtable-version
 ```bash
 git checkout firebase-version
 ```
-1. Create Firebase project
+1. Create [Firebase](https://firebase.google.com/) project
 2. Enable Realtime Database
 3. Configure authentication rules
 
