@@ -317,7 +317,7 @@ If BribeYourselfFit helps you on your fitness journey, please star this reposito
 
 **Questions?** **Problems?** **Success stories?** 
 
-We'd love to hear from you! [Create an issue](https://github.com/TheBIMsider/BribeYourselfFit/issues) or [start a discussion](https://github.com/TheBIMsider/BribeYourselfFit/discussions).
+We'd love to hear from you! [Create an issue](https://github.com/TheBIMsider/BYF/issues).
 
 ---
 
