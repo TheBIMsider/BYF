@@ -2647,3 +2647,23 @@ const DateUtils = {
 
 // Make DateUtils available globally
 window.DateUtils = DateUtils;
+
+// Make DateUtils available globally
+window.DateUtils = DateUtils;
+
+// PWA Event Listeners - Fixed Version
+window.addEventListener('beforeinstallprompt', (e) => {
+  console.log('PWA install prompt available');
+  e.preventDefault();
+  if (window.app && typeof window.app.showInstallPrompt === 'function') {
+    window.app.deferredPrompt = e;
+    window.app.showInstallPrompt();
+  }
+});
+
+window.addEventListener('appinstalled', () => {
+  console.log('PWA installed successfully');
+  if (window.app) {
+    window.app.deferredPrompt = null;
+  }
+});
