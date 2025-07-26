@@ -166,7 +166,8 @@ testConnection()
 getStats()
 
 // Reset all data (careful!)
-resetData()```
+resetData()
+```
 
 ## 🚨 Troubleshooting
 
