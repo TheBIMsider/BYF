@@ -2508,6 +2508,45 @@ window.addEventListener('unhandledrejection', (e) => {
   }
 });
 
+// Fix for PWA install prompt errors
+BribeYourselfFit.prototype.showInstallPrompt = function() {
+  if (this.deferredPrompt) {
+    // Only show install button if user hasn't dismissed it
+    const existingBtn = document.getElementById('pwa-install-btn');
+    if (existingBtn) return; // Don't create multiple buttons
+    
+    const installBtn = document.createElement('button');
+    installBtn.id = 'pwa-install-btn';
+    installBtn.textContent = '📱 Install App';
+    installBtn.className = 'btn btn-primary';
+    installBtn.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 1000; opacity: 0.9;';
+    
+    installBtn.addEventListener('click', async () => {
+      try {
+        if (this.deferredPrompt) {
+          this.deferredPrompt.prompt();
+          const result = await this.deferredPrompt.userChoice;
+          console.log('PWA install result:', result);
+          this.deferredPrompt = null;
+          installBtn.remove();
+        }
+      } catch (error) {
+        console.error('Install prompt error:', error);
+        installBtn.remove();
+      }
+    });
+    
+    // Auto-remove after 15 seconds
+    setTimeout(() => {
+      if (installBtn.parentNode) {
+        installBtn.remove();
+      }
+    }, 15000);
+    
+    document.body.appendChild(installBtn);
+  }
+};
+
 /**
  * Utility functions for date manipulation and formatting
  */
