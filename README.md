@@ -184,7 +184,6 @@ BYF/
 ├── manifest.json       # PWA manifest
 ├── sw.js              # Service Worker for PWA
 ├── README.md          # This file
-
 ```
 
 ### **Contributing**
@@ -279,8 +278,8 @@ BYF/
 - 📖 **Branch READMEs**: Each version has detailed setup instructions
 - 🏠 **localStorage Version**: [Setup Guide](../../tree/main)
 - 🌐 **JSONBin Version**: [Setup Guide](../../tree/jsonbin-version)
-- 📊 **Airtable Version**: Coming Soon
-- 🔥 **Firebase Version**: Comming Soon
+- 📊 **Airtable Version**: "Coming Soon"
+- 🔥 **Firebase Version**: "Coming Soon"
 - 🔌 **API Integration**: *(guides coming with each backend)*
 
 ### **Community**
