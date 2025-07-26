@@ -291,6 +291,12 @@ if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) ||
     dailyExercise,
     dailyWater
   ) {
+      // First check for NaN values
+  if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) || 
+      isNaN(dailyExercise) || isNaN(dailyWater)) {
+    this.showError('Please enter valid numbers in all fields');
+    return false;
+  }
     if (startingWeight < 50 || startingWeight > 1000) {
       this.showError('Starting weight must be between 50-1000 lbs');
       return false;
