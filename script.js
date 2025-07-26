@@ -2381,19 +2381,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// PWA Install Prompt
-window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('PWA install prompt available');
-  e.preventDefault();
-  window.app.deferredPrompt = e;
-  window.app.showInstallPrompt();
-});
-
-window.addEventListener('appinstalled', () => {
-  console.log('PWA installed successfully');
-  window.app.deferredPrompt = null;
-});
-
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   // Create global app instance
