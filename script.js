@@ -1,19 +1,14 @@
 /**
- * BribeYourselfFit - Gamified Fitness Tracker
+ * BribeYourselfFit - JSONBin.io Cloud Version
  *
- * This JavaScript file implements a complete fitness tracking system with:
- * - Daily logging with streak tracking
- * - Weight progress monitoring
- * - Gamification with milestones and rewards
- * - Data visualization with charts
- * - localStorage persistence
- *
- * Data Structure:
- * - User profile (goals, starting stats)
- * - Daily logs (weight, steps, exercise, water, wellness)
- * - Streaks (daily consecutive + weekly/monthly cumulative)
- * - Milestones (default + custom rewards)
- * - Achievements (completed milestones)
+ * This version uses JSONBin.io for cloud storage instead of localStorage.
+ * Data is automatically synced to the cloud on every save.
+ * 
+ * Key differences from localStorage version:
+ * - API key setup during initial configuration
+ * - All data operations use JSONBin.io REST API
+ * - Real-time cloud synchronization
+ * - Network error handling and retry logic
  */
 
 class BribeYourselfFit {
@@ -28,7 +23,14 @@ class BribeYourselfFit {
     this.currentTab = 'dashboard';
     this.chartPeriod = 7;
     this.currentDate = new Date().toISOString().split('T')[0];
-    this.deferredPrompt = null; // For PWA install prompt
+
+    // JSONBin.io configuration
+    this.jsonbinConfig = {
+      apiKey: null,
+      binId: null,
+      binName: null,
+      baseUrl: 'https://api.jsonbin.io/v3'
+    };
 
     // Data validation ranges
     this.validationRanges = {
@@ -43,549 +45,10 @@ class BribeYourselfFit {
   }
 
   /**
-   * Initialize the application
-   * Load data, set up event listeners, and determine initial screen
-   */
-  init() {
-    this.loadData();
-    this.setupEventListeners();
-    this.updateCurrentDate();
-
-    // Show setup screen if no user profile exists
-    if (!this.currentUser) {
-      this.showSetupScreen();
-    } else {
-      this.showAppScreen();
-      this.updateDashboard();
-    }
-  }
-
-  /**
-   * Set up all event listeners for the application
-   */
-  setupEventListeners() {
-    // Theme toggle
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-      themeToggle.addEventListener('click', this.toggleTheme.bind(this));
-    }
-
-    // Setup form
-    const setupForm = document.getElementById('setupForm');
-    if (setupForm) {
-      setupForm.addEventListener('submit', this.handleSetup.bind(this));
-    }
-
-    // Daily log form
-    const dailyLogForm = document.getElementById('dailyLogForm');
-    if (dailyLogForm) {
-      dailyLogForm.addEventListener('submit', this.handleDailyLog.bind(this));
-    }
-
-    // Wellness checkboxes
-    const wellnessCheckboxes = document.querySelectorAll('.wellness-checkbox');
-    wellnessCheckboxes.forEach((checkbox) => {
-      checkbox.addEventListener('change', this.updateWellnessScore.bind(this));
-    });
-
-    // Exercise type checkboxes
-    const exerciseCheckboxes = document.querySelectorAll('.exercise-checkbox');
-    exerciseCheckboxes.forEach((checkbox) => {
-      checkbox.addEventListener(
-        'change',
-        this.updateExerciseSelection.bind(this)
-      );
-    });
-
-    // Tab navigation
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    tabBtns.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        this.switchTab(e.target.dataset.tab);
-      });
-    });
-
-    // Chart period controls
-    const chartBtns = document.querySelectorAll('.chart-btn');
-    chartBtns.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        this.setChartPeriod(parseInt(e.target.dataset.period) || 'all');
-      });
-    });
-
-    // Reward form
-    const rewardForm = document.getElementById('rewardForm');
-    if (rewardForm) {
-      rewardForm.addEventListener('submit', this.handleCustomReward.bind(this));
-    }
-
-    // Reward type selector
-    const rewardType = document.getElementById('rewardType');
-    if (rewardType) {
-      rewardType.addEventListener(
-        'change',
-        this.updateRewardCriteria.bind(this)
-      );
-    }
-
-    // Calendar navigation
-    const prevMonth = document.getElementById('prevMonth');
-    const nextMonth = document.getElementById('nextMonth');
-    if (prevMonth)
-      prevMonth.addEventListener('click', () => this.navigateCalendar(-1));
-    if (nextMonth)
-      nextMonth.addEventListener('click', () => this.navigateCalendar(1));
-  }
-
-  /**
-   * Load all data from localStorage
-   */
-  loadData() {
-    try {
-      this.currentUser = JSON.parse(localStorage.getItem('byf_user')) || null;
-      this.dailyLogs = JSON.parse(localStorage.getItem('byf_dailyLogs')) || {};
-      this.streaks =
-        JSON.parse(localStorage.getItem('byf_streaks')) ||
-        this.initializeStreaks();
-      this.customRewards =
-        JSON.parse(localStorage.getItem('byf_customRewards')) || [];
-      this.achievements =
-        JSON.parse(localStorage.getItem('byf_achievements')) || [];
-
-      // Load theme preference
-      const savedTheme = localStorage.getItem('byf_theme') || 'light';
-      document.documentElement.setAttribute('data-theme', savedTheme);
-      this.updateThemeToggle(savedTheme);
-    } catch (error) {
-      console.error('Error loading data:', error);
-      this.showError('Failed to load saved data. Starting fresh.');
-    }
-  }
-
-  /**
-   * Save all data to localStorage
-   */
-  saveData() {
-    try {
-      localStorage.setItem('byf_user', JSON.stringify(this.currentUser));
-      localStorage.setItem('byf_dailyLogs', JSON.stringify(this.dailyLogs));
-      localStorage.setItem('byf_streaks', JSON.stringify(this.streaks));
-      localStorage.setItem(
-        'byf_customRewards',
-        JSON.stringify(this.customRewards)
-      );
-      localStorage.setItem(
-        'byf_achievements',
-        JSON.stringify(this.achievements)
-      );
-    } catch (error) {
-      console.error('Error saving data:', error);
-      this.showError('Failed to save data. Please try again.');
-    }
-  }
-
-  /**
-   * Initialize streak counters
-   */
-  initializeStreaks() {
-    return {
-      overall: 0,
-      steps: 0,
-      exercise: 0,
-      water: 0,
-      wellness: 0,
-      lastLogDate: null,
-      weeklyWeight: false,
-      lastWeightDate: null,
-    };
-  }
-
-  /**
-   * Handle user profile setup
-   */
-  handleSetup(e) {
-    e.preventDefault();
-
-    const formData = new FormData(e.target);
-    const startingWeight = parseFloat(formData.get('startingWeight'));
-    const goalWeight = parseFloat(formData.get('goalWeight'));
-    const dailySteps = parseInt(formData.get('dailySteps'));
-    const dailyExercise = parseInt(formData.get('dailyExercise'));
-    const dailyWater = parseFloat(formData.get('dailyWater'));
-
-    // Validate input
-    if (
-      !this.validateSetupData(
-        startingWeight,
-        goalWeight,
-        dailySteps,
-        dailyExercise,
-        dailyWater
-      )
-    ) {
-      return;
-    }
-
-    // Create user profile
-    this.currentUser = {
-      startingWeight,
-      goalWeight,
-      currentWeight: startingWeight,
-      dailySteps,
-      dailyExercise,
-      dailyWater,
-      setupDate: new Date().toISOString(),
-      lastWeightUpdate: new Date().toISOString(),
-    };
-
-    // Initialize streaks
-    this.streaks = this.initializeStreaks();
-
-    // Save and show app
-    this.saveData();
-    this.showAppScreen();
-    this.updateDashboard();
-    this.initializeDefaultMilestones();
-
-    this.showSuccess(
-      'Profile created successfully! Start logging your fitness journey.'
-    );
-  }
-
-  /**
-   * Validate setup form data
-   */
-  validateSetupData(
-    startingWeight,
-    goalWeight,
-    dailySteps,
-    dailyExercise,
-    dailyWater
-  ) {
-    if (startingWeight < 50 || startingWeight > 1000) {
-      this.showError('Starting weight must be between 50-1000 lbs');
-      return false;
-    }
-    if (goalWeight < 50 || goalWeight > 1000) {
-      this.showError('Goal weight must be between 50-1000 lbs');
-      return false;
-    }
-    if (Math.abs(startingWeight - goalWeight) < 1) {
-      this.showError('Starting and goal weight should be at least 1 lb apart');
-      return false;
-    }
-    if (dailySteps < 1000 || dailySteps > 50000) {
-      this.showError('Daily steps goal must be between 1,000-50,000');
-      return false;
-    }
-    if (dailyExercise < 5 || dailyExercise > 300) {
-      this.showError('Daily exercise goal must be between 5-300 minutes');
-      return false;
-    }
-    if (dailyWater < 0.5 || dailyWater > 10) {
-      this.showError('Daily water goal must be between 0.5-10 liters');
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * Handle daily log submission - FIXED VERSION
-   */
-  async handleDailyLog(e) {
-    e.preventDefault();
-
-    const today = this.currentDate;
-
-    // Get form values - CORRECTED VERSION (same fix as before)
-    const weightInput = document.getElementById('todayWeight');
-    const stepsInput = document.getElementById('todaySteps');
-    const exerciseInput = document.getElementById('todayExerciseMinutes');
-    const waterInput = document.getElementById('todayWater');
-
-    // Check if inputs exist and have values
-    const weight =
-      weightInput && weightInput.value !== ''
-        ? parseFloat(weightInput.value)
-        : null;
-    const steps =
-      stepsInput && stepsInput.value !== '' ? parseInt(stepsInput.value) : 0;
-    const exerciseMinutes =
-      exerciseInput && exerciseInput.value !== ''
-        ? parseInt(exerciseInput.value)
-        : 0;
-    const water =
-      waterInput && waterInput.value !== '' ? parseFloat(waterInput.value) : 0;
-
-    // Debug what we're actually getting (you can remove these console.log lines later)
-    console.log('Input elements:', {
-      weightInput,
-      stepsInput,
-      exerciseInput,
-      waterInput,
-    });
-    console.log('Raw values:', {
-      weight: weightInput?.value,
-      steps: stepsInput?.value,
-      exercise: exerciseInput?.value,
-      water: waterInput?.value,
-    });
-    console.log('Parsed values:', { weight, steps, exerciseMinutes, water });
-
-    // Get selected exercise types
-    const exerciseTypes = Array.from(
-      document.querySelectorAll('.exercise-checkbox:checked')
-    ).map((cb) => cb.value);
-
-    // Get wellness score
-    const wellnessItems = Array.from(
-      document.querySelectorAll('.wellness-checkbox:checked')
-    ).map((cb) => cb.dataset.wellness);
-    const wellnessScore = wellnessItems.length;
-
-    // Debug log to see what we're getting
-    console.log('Form data collected:', {
-      weight,
-      steps,
-      exerciseMinutes,
-      water,
-      exerciseTypes,
-      wellnessScore,
-    });
-
-    // Validate data
-    if (
-      !(await this.validateDailyLog(
-        weight,
-        steps,
-        exerciseMinutes,
-        water,
-        exerciseTypes
-      ))
-    ) {
-      return;
-    }
-
-    // Create daily log entry
-    const logEntry = {
-      date: today,
-      weight,
-      steps,
-      exerciseMinutes,
-      exerciseTypes,
-      water,
-      wellnessScore,
-      wellnessItems,
-      timestamp: new Date().toISOString(),
-    };
-
-    console.log('Saving log entry:', logEntry); // Debug log
-
-    // Save log entry
-    this.dailyLogs[today] = logEntry;
-
-    // Update user's current weight if provided
-    if (weight) {
-      this.currentUser.currentWeight = weight;
-      this.currentUser.lastWeightUpdate = new Date().toISOString();
-    }
-
-    // Update streaks
-    this.updateStreaks(logEntry);
-
-    // Save all data
-    this.saveData();
-
-    // Update dashboard
-    this.updateDashboard();
-
-    // Check for achievements
-    this.checkAchievements();
-
-    // Performance check for large datasets
-    const logCount = Object.keys(this.dailyLogs).length;
-    if (logCount > 365) {
-      // More than 1 year of data
-      console.log(`Performance: Managing ${logCount} daily logs`);
-      // Optionally compress old data or suggest export
-      if (logCount > 730 && logCount % 30 === 0) {
-        // Every 30 entries after 2 years
-        this.showSuccess(
-          `Daily log saved! You have ${logCount} entries. Consider exporting older data for better performance.`
-        );
-        return;
-      }
-    }
-
-    this.showSuccess('Daily log saved successfully!');
-  }
-
-  /**
-   * Validate daily log data with confirmation prompts for unusual values
-   */
-  async validateDailyLog(weight, steps, exerciseMinutes, water, exerciseTypes) {
-    // Validate weight
-    if (
-      weight &&
-      (weight < this.validationRanges.weight.min ||
-        weight > this.validationRanges.weight.max)
-    ) {
-      if (!(await this.confirmUnusualValue('weight', weight, 'lbs')))
-        return false;
-    }
-
-    // Validate steps
-    if (steps > this.validationRanges.steps.max) {
-      if (!(await this.confirmUnusualValue('steps', steps, 'steps')))
-        return false;
-    }
-
-    // Validate exercise minutes
-    if (exerciseMinutes > this.validationRanges.exercise.max) {
-      if (
-        !(await this.confirmUnusualValue(
-          'exercise',
-          exerciseMinutes,
-          'minutes'
-        ))
-      )
-        return false;
-    }
-
-    // Validate water
-    if (water > this.validationRanges.water.max) {
-      if (!(await this.confirmUnusualValue('water', water, 'liters')))
-        return false;
-    }
-
-    // Validate exercise types are selected if exercise minutes > 0
-    if (exerciseMinutes > 0 && exerciseTypes.length === 0) {
-      this.showError(
-        'Please select at least one exercise type when logging exercise minutes.'
-      );
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Show confirmation dialog for unusual values
-   */
-  confirmUnusualValue(type, value, unit) {
-    return new Promise((resolve) => {
-      const message = `The ${type} value of ${value} ${unit} seems unusually high. Please confirm this is correct.`;
-      if (confirm(message)) {
-        resolve(true);
-      } else {
-        resolve(false);
-      }
-    });
-  }
-
-  /**
-   * Update streak counters based on daily log
-   */
-  updateStreaks(logEntry) {
-    const today = logEntry.date;
-    const yesterday = this.getDateOffset(today, -1);
-
-    // Check if goals are met
-    const goalsMetToday = {
-      steps: logEntry.steps >= this.currentUser.dailySteps,
-      exercise: logEntry.exerciseMinutes >= this.currentUser.dailyExercise,
-      water: logEntry.water >= this.currentUser.dailyWater,
-      wellness: logEntry.wellnessScore >= 3,
-    };
-
-    // Check if weight was logged this week
-    const weeklyWeightMet = this.checkWeeklyWeight(today);
-
-    // Update daily consecutive streaks
-    this.updateDailyStreaks(today, yesterday, goalsMetToday);
-
-    // Update overall streak (requires all daily goals + weekly weight)
-    const allDailyGoalsMet = Object.values(goalsMetToday).every((met) => met);
-    if (allDailyGoalsMet && weeklyWeightMet) {
-      if (this.streaks.lastLogDate === yesterday) {
-        this.streaks.overall++;
-      } else {
-        this.streaks.overall = 1;
-      }
-    } else {
-      this.streaks.overall = 0;
-    }
-
-    // Update last log date
-    this.streaks.lastLogDate = today;
-    this.streaks.weeklyWeight = weeklyWeightMet;
-  }
-
-  /**
-   * Update individual daily consecutive streaks
-   */
-  updateDailyStreaks(today, yesterday, goalsMetToday) {
-    const streakTypes = ['steps', 'exercise', 'water', 'wellness'];
-
-    streakTypes.forEach((type) => {
-      if (goalsMetToday[type]) {
-        if (this.streaks.lastLogDate === yesterday) {
-          this.streaks[type]++;
-        } else {
-          this.streaks[type] = 1;
-        }
-      } else {
-        this.streaks[type] = 0;
-      }
-    });
-  }
-
-  /**
-   * Check if weight requirement is met for this week
-   */
-  checkWeeklyWeight(date) {
-    const currentWeekStart = this.getWeekStart(date);
-    const weekDates = [];
-
-    // Get all dates in current week
-    for (let i = 0; i < 7; i++) {
-      weekDates.push(this.getDateOffset(currentWeekStart, i));
-    }
-
-    // Check if weight was logged any day this week
-    return weekDates.some((weekDate) => {
-      const log = this.dailyLogs[weekDate];
-      return log && log.weight !== null;
-    });
-  }
-
-  /**
-   * Get the start of the week (Monday) for a given date
-   */
-  getWeekStart(dateString) {
-    const date = new Date(dateString);
-    const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
-    const weekStart = new Date(date.setDate(diff));
-    return weekStart.toISOString().split('T')[0];
-  }
-
-  /**
-   * Get date with offset
-   */
-  getDateOffset(dateString, offset) {
-    const date = new Date(dateString);
-    date.setDate(date.getDate() + offset);
-    return date.toISOString().split('T')[0];
-  }
-
-  /**
    * Update wellness score display
    */
   updateWellnessScore() {
-    const checkedBoxes = document.querySelectorAll(
-      '.wellness-checkbox:checked'
-    );
+    const checkedBoxes = document.querySelectorAll('.wellness-checkbox:checked');
     const score = checkedBoxes.length;
 
     // Update score indicators
@@ -632,158 +95,7 @@ class BribeYourselfFit {
   }
 
   /**
-   * Update dashboard display
-   */
-  updateDashboard() {
-    this.updateStreakDisplay();
-    this.updateQuickStats();
-    this.updateWeightStatus();
-    this.loadTodaysData();
-    this.updateWellnessScore();
-    this.updateExerciseSelection();
-  }
-
-  /**
-   * Update streak display in sidebar
-   */
-  updateStreakDisplay() {
-    // Main streak counter
-    const currentStreakEl = document.getElementById('currentStreak');
-    if (currentStreakEl) {
-      currentStreakEl.textContent = this.streaks.overall;
-    }
-
-    // Individual streak counters
-    const streakTypes = ['steps', 'exercise', 'water', 'wellness'];
-    streakTypes.forEach((type) => {
-      const streakEl = document.getElementById(`${type}Streak`);
-      if (streakEl) {
-        const valueEl = streakEl.querySelector('.streak-value');
-        if (valueEl) {
-          valueEl.textContent = this.streaks[type];
-        }
-
-        // Add active class if streak > 0
-        if (this.streaks[type] > 0) {
-          streakEl.classList.add('active');
-        } else {
-          streakEl.classList.remove('active');
-        }
-      }
-    });
-  }
-
-  /**
-   * Update quick stats display
-   */
-  updateQuickStats() {
-    const currentWeightEl = document.getElementById('currentWeightDisplay');
-    const goalWeightEl = document.getElementById('goalWeightDisplay');
-    const weightToGoEl = document.getElementById('weightToGoDisplay');
-
-    if (currentWeightEl && this.currentUser) {
-      currentWeightEl.textContent = `${this.currentUser.currentWeight} lbs`;
-    }
-
-    if (goalWeightEl && this.currentUser) {
-      goalWeightEl.textContent = `${this.currentUser.goalWeight} lbs`;
-    }
-
-    if (weightToGoEl && this.currentUser) {
-      const weightToGo = Math.abs(
-        this.currentUser.currentWeight - this.currentUser.goalWeight
-      );
-      weightToGoEl.textContent = `${weightToGo.toFixed(1)} lbs`;
-    }
-  }
-
-  /**
-   * Update weight status indicator
-   */
-  updateWeightStatus() {
-    const weightStatusEl = document.getElementById('weightStatus');
-    if (!weightStatusEl) return;
-
-    const weeklyWeightMet = this.checkWeeklyWeight(this.currentDate);
-    if (weeklyWeightMet) {
-      weightStatusEl.textContent = '✅ Logged this week';
-      weightStatusEl.style.color = 'var(--accent-success)';
-    } else {
-      weightStatusEl.textContent = '⚠️ Not logged this week';
-      weightStatusEl.style.color = 'var(--accent-warning)';
-    }
-  }
-
-  /**
-   * Load today's data into the form - FIXED VERSION
-   */
-  loadTodaysData() {
-    const todaysLog = this.dailyLogs[this.currentDate];
-
-    console.log("Loading today's data for:", this.currentDate, todaysLog); // Debug log
-
-    if (!todaysLog) return;
-
-    // Load form values - Make sure we're targeting the right elements
-    const weightInput = document.getElementById('todayWeight');
-    const stepsInput = document.getElementById('todaySteps');
-    const exerciseInput = document.getElementById('todayExerciseMinutes');
-    const waterInput = document.getElementById('todayWater');
-
-    if (
-      weightInput &&
-      todaysLog.weight !== null &&
-      todaysLog.weight !== undefined
-    ) {
-      weightInput.value = todaysLog.weight;
-    }
-    if (stepsInput && todaysLog.steps) {
-      stepsInput.value = todaysLog.steps;
-    }
-    if (exerciseInput && todaysLog.exerciseMinutes) {
-      exerciseInput.value = todaysLog.exerciseMinutes;
-    }
-    if (waterInput && todaysLog.water) {
-      waterInput.value = todaysLog.water;
-    }
-
-    // Clear existing exercise type selections first
-    document
-      .querySelectorAll('.exercise-checkbox')
-      .forEach((cb) => (cb.checked = false));
-
-    // Load exercise types
-    if (todaysLog.exerciseTypes && todaysLog.exerciseTypes.length > 0) {
-      todaysLog.exerciseTypes.forEach((type) => {
-        const checkbox = document.getElementById(type);
-        if (checkbox) {
-          checkbox.checked = true;
-        }
-      });
-    }
-
-    // Clear existing wellness selections first
-    document
-      .querySelectorAll('.wellness-checkbox')
-      .forEach((cb) => (cb.checked = false));
-
-    // Load wellness items
-    if (todaysLog.wellnessItems && todaysLog.wellnessItems.length > 0) {
-      todaysLog.wellnessItems.forEach((item) => {
-        const checkbox = document.querySelector(`[data-wellness="${item}"]`);
-        if (checkbox) {
-          checkbox.checked = true;
-        }
-      });
-    }
-
-    // Update displays after loading data
-    this.updateWellnessScore();
-    this.updateExerciseSelection();
-  }
-
-  /**
-   * Switch between tabs - CORRECTED VERSION
+   * Switch between tabs
    */
   switchTab(tabName) {
     this.currentTab = tabName;
@@ -797,26 +109,24 @@ class BribeYourselfFit {
       }
     });
 
-    // Update tab content - FIXED LOGIC
+    // Update tab content
     document.querySelectorAll('.tab-content').forEach((content) => {
       if (content.id === `${tabName}Tab`) {
         content.classList.remove('hidden');
         content.classList.add('active');
-        content.style.display = 'block'; // Force display
+        content.style.display = 'block';
       } else {
         content.classList.add('hidden');
         content.classList.remove('active');
-        content.style.display = 'none'; // Force hide
+        content.style.display = 'none';
       }
     });
 
-    // Load tab-specific content with error handling
+    // Load tab-specific content
     try {
       if (tabName === 'charts') {
-        console.log('Loading charts tab...');
         this.loadChartsTab();
       } else if (tabName === 'rewards') {
-        console.log('Loading rewards tab...');
         this.loadRewardsTab();
       }
     } catch (error) {
@@ -825,31 +135,24 @@ class BribeYourselfFit {
   }
 
   /**
-   * Load charts tab content - MOBILE OPTIMIZED VERSION
+   * Load charts tab content
    */
   loadChartsTab() {
-    console.log('Loading charts tab...');
-
-    // Check if mobile device
     const isMobile = window.innerWidth <= 768;
-    const delay = isMobile ? 300 : 100; // Longer delay on mobile
+    const delay = isMobile ? 300 : 100;
 
-    // Use requestAnimationFrame for better performance
     requestAnimationFrame(() => {
       setTimeout(() => {
         try {
-          // Render charts one by one on mobile to reduce load
           if (isMobile) {
             this.renderWeightChart();
             setTimeout(() => this.renderActivityChart(), 150);
             setTimeout(() => this.renderStreakCalendar(), 300);
           } else {
-            // Render all at once on desktop
             this.renderWeightChart();
             this.renderActivityChart();
             this.renderStreakCalendar();
           }
-          console.log('Charts rendered successfully');
         } catch (error) {
           console.error('Error rendering charts:', error);
         }
@@ -858,633 +161,17 @@ class BribeYourselfFit {
   }
 
   /**
-   * Set chart period and update charts
-   */
-  setChartPeriod(period) {
-    this.chartPeriod = period;
-
-    // Update chart button states
-    document.querySelectorAll('.chart-btn').forEach((btn) => {
-      if (
-        (btn.dataset.period && parseInt(btn.dataset.period) === period) ||
-        (btn.dataset.period === 'all' && period === 'all')
-      ) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-    });
-
-    // Re-render charts
-    this.renderWeightChart();
-    this.renderActivityChart();
-  }
-
-  /**
-   * Render weight progress chart using Canvas - FIXED SIZING
-   */
-  renderWeightChart() {
-    const canvas = document.getElementById('weightChart');
-    if (!canvas) return;
-
-    // Force canvas to have dimensions BEFORE getting context
-    const container = canvas.parentElement;
-    const isMobile = window.innerWidth <= 768;
-
-    // Use lower resolution on mobile for better performance
-    const pixelRatio = isMobile ? 1 : window.devicePixelRatio || 1;
-    const containerWidth = container.offsetWidth || (isMobile ? 350 : 800);
-    const containerHeight = container.offsetHeight || (isMobile ? 250 : 400);
-
-    // Set canvas size with pixel ratio optimization
-    canvas.width = containerWidth * pixelRatio;
-    canvas.height = containerHeight * pixelRatio;
-    canvas.style.width = containerWidth + 'px';
-    canvas.style.height = containerHeight + 'px';
-
-    const ctx = canvas.getContext('2d');
-    ctx.scale(pixelRatio, pixelRatio);
-    const width = containerWidth;
-    const height = containerHeight;
-
-    // Rest of your chart code continues here...
-    const padding = { top: 40, right: 40, bottom: 60, left: 60 };
-    // ... continue with existing chart code
-
-    // Get weight data - ADD THIS HERE
-    const weightData = this.getWeightData();
-    if (weightData.length === 0) {
-      this.drawNoDataMessage(ctx, width, height, 'No weight data available');
-      return;
-    }
-
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-
-    // Calculate scales
-    const weights = weightData.map((d) => d.weight);
-    const minWeight = Math.min(...weights, this.currentUser.goalWeight) - 5;
-    const maxWeight = Math.max(...weights, this.currentUser.startingWeight) + 5;
-
-    // Calculate chart area dimensions
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-
-    // Define scale functions
-    const xScale = (index) =>
-      padding.left + (index / (weightData.length - 1)) * chartWidth;
-
-    const yScale = (weight) =>
-      padding.top +
-      (1 - (weight - minWeight) / (maxWeight - minWeight)) * chartHeight;
-
-    // Draw grid lines
-    ctx.strokeStyle = getComputedStyle(
-      document.documentElement
-    ).getPropertyValue('--border-color');
-    ctx.lineWidth = 1;
-
-    // Horizontal grid lines
-    for (let i = 0; i <= 5; i++) {
-      const weight = minWeight + (maxWeight - minWeight) * (i / 5);
-      const y = yScale(weight);
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(width - padding.right, y);
-      ctx.stroke();
-
-      // Weight labels
-      ctx.fillStyle = getComputedStyle(
-        document.documentElement
-      ).getPropertyValue('--text-secondary');
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(`${weight.toFixed(0)} lbs`, padding.left - 10, y + 4);
-    }
-
-    // Draw goal line
-    if (
-      this.currentUser.goalWeight >= minWeight &&
-      this.currentUser.goalWeight <= maxWeight
-    ) {
-      const goalY = yScale(this.currentUser.goalWeight);
-      ctx.strokeStyle = getComputedStyle(
-        document.documentElement
-      ).getPropertyValue('--accent-success');
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath();
-      ctx.moveTo(padding.left, goalY);
-      ctx.lineTo(width - padding.right, goalY);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Goal label
-      ctx.fillStyle = getComputedStyle(
-        document.documentElement
-      ).getPropertyValue('--accent-success');
-      ctx.font = 'bold 12px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(
-        `Goal: ${this.currentUser.goalWeight} lbs`,
-        width - padding.right - 100,
-        goalY - 10
-      );
-    }
-
-    // Draw weight line
-    ctx.strokeStyle = getComputedStyle(
-      document.documentElement
-    ).getPropertyValue('--accent-primary');
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    weightData.forEach((data, index) => {
-      const x = xScale(index);
-      const y = yScale(data.weight);
-      if (index === 0) {
-        ctx.moveTo(x, y);
-      } else {
-        ctx.lineTo(x, y);
-      }
-    });
-    ctx.stroke();
-
-    // Draw data points
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(
-      '--accent-primary'
-    );
-    weightData.forEach((data, index) => {
-      const x = xScale(index);
-      const y = yScale(data.weight);
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    // Draw trend indicator
-    this.updateWeightTrend(weightData);
-  }
-
-  /**
-   * Get filtered weight data based on chart period
-   */
-  getWeightData() {
-    const weightEntries = Object.values(this.dailyLogs)
-      .filter((log) => log.weight !== null)
-      .map((log) => ({ date: log.date, weight: log.weight }))
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    if (this.chartPeriod === 'all') {
-      return weightEntries;
-    }
-
-    const cutoffDate = this.getDateOffset(this.currentDate, -this.chartPeriod);
-    return weightEntries.filter((entry) => entry.date >= cutoffDate);
-  }
-
-  /**
-   * Update weight trend indicator
-   */
-  updateWeightTrend(weightData) {
-    const trendEl = document.getElementById('weightTrend');
-    if (!trendEl || weightData.length < 2) return;
-
-    const firstWeight = weightData[0].weight;
-    const lastWeight = weightData[weightData.length - 1].weight;
-    const change = lastWeight - firstWeight;
-
-    if (Math.abs(change) < 0.1) {
-      trendEl.textContent = 'Stable';
-      trendEl.style.color = 'var(--text-secondary)';
-    } else if (change < 0) {
-      trendEl.textContent = `↓ ${Math.abs(change).toFixed(1)} lbs`;
-      trendEl.style.color = 'var(--accent-success)';
-    } else {
-      trendEl.textContent = `↑ ${change.toFixed(1)} lbs`;
-      trendEl.style.color = 'var(--accent-danger)';
-    }
-  }
-
-  /**
-   * Render activity summary chart using Canvas
-   */
-  renderActivityChart() {
-    const canvas = document.getElementById('activityChart');
-    if (!canvas) return;
-
-    // Force canvas to have dimensions BEFORE getting context
-    const container = canvas.parentElement;
-    const isMobile = window.innerWidth <= 768;
-
-    // Use lower resolution on mobile for better performance
-    const pixelRatio = isMobile ? 1 : window.devicePixelRatio || 1;
-    const containerWidth = container.offsetWidth || (isMobile ? 350 : 800);
-    const containerHeight = container.offsetHeight || (isMobile ? 250 : 400);
-
-    // Set canvas size with pixel ratio optimization
-    canvas.width = containerWidth * pixelRatio;
-    canvas.height = containerHeight * pixelRatio;
-    canvas.style.width = containerWidth + 'px';
-    canvas.style.height = containerHeight + 'px';
-
-    // Scale context for crisp rendering
-    const ctx = canvas.getContext('2d');
-    ctx.scale(pixelRatio, pixelRatio);
-    const width = containerWidth;
-    const height = containerHeight;
-
-    // Get activity data
-    const activityData = this.getActivityData();
-    if (activityData.length === 0) {
-      this.drawNoDataMessage(ctx, width, height, 'No activity data available');
-      return;
-    }
-
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-
-    // Define chart dimensions and padding
-    const padding = { top: 40, right: 40, bottom: 80, left: 60 };
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-
-    // Calculate bar dimensions
-    const barWidth = (chartWidth / activityData.length) * 0.8;
-    const barSpacing = (chartWidth / activityData.length) * 0.2;
-
-    // Find max values for scaling
-    const maxSteps = Math.max(
-      ...activityData.map((d) => d.steps),
-      this.currentUser.dailySteps
-    );
-    const maxExercise = Math.max(
-      ...activityData.map((d) => d.exercise),
-      this.currentUser.dailyExercise
-    );
-    const maxWater = Math.max(
-      ...activityData.map((d) => d.water),
-      this.currentUser.dailyWater
-    );
-
-    // Draw goal lines
-    this.drawGoalLines(ctx, padding, chartWidth, chartHeight, {
-      steps: this.currentUser.dailySteps / maxSteps,
-      exercise: this.currentUser.dailyExercise / maxExercise,
-      water: this.currentUser.dailyWater / maxWater,
-    });
-
-    // Draw bars
-    activityData.forEach((data, index) => {
-      const x = padding.left + index * (barWidth + barSpacing) + barSpacing / 2;
-
-      // Steps bar (normalized)
-      const stepsHeight = (data.steps / maxSteps) * chartHeight;
-      ctx.fillStyle = getComputedStyle(
-        document.documentElement
-      ).getPropertyValue('--accent-primary');
-      ctx.fillRect(
-        x,
-        padding.top + chartHeight - stepsHeight,
-        barWidth / 3,
-        stepsHeight
-      );
-
-      // Exercise bar (normalized)
-      const exerciseHeight = (data.exercise / maxExercise) * chartHeight;
-      ctx.fillStyle = getComputedStyle(
-        document.documentElement
-      ).getPropertyValue('--accent-success');
-      ctx.fillRect(
-        x + barWidth / 3,
-        padding.top + chartHeight - exerciseHeight,
-        barWidth / 3,
-        exerciseHeight
-      );
-
-      // Water bar (normalized)
-      const waterHeight = (data.water / maxWater) * chartHeight;
-      ctx.fillStyle = getComputedStyle(
-        document.documentElement
-      ).getPropertyValue('--accent-warning');
-      ctx.fillRect(
-        x + (barWidth * 2) / 3,
-        padding.top + chartHeight - waterHeight,
-        barWidth / 3,
-        waterHeight
-      );
-
-      // Date labels
-      ctx.fillStyle = getComputedStyle(
-        document.documentElement
-      ).getPropertyValue('--text-secondary');
-      ctx.font = '10px sans-serif';
-      ctx.textAlign = 'center';
-      const dateLabel = new Date(data.date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
-      ctx.fillText(dateLabel, x + barWidth / 2, height - padding.bottom + 20);
-    });
-
-    // Draw legend
-    this.drawActivityLegend(ctx, width, height, padding);
-
-    // Update period indicator
-    const periodEl = document.getElementById('activityPeriod');
-    if (periodEl) {
-      periodEl.textContent =
-        this.chartPeriod === 'all'
-          ? 'All Time'
-          : `Last ${this.chartPeriod} Days`;
-    }
-  }
-
-  /**
-   * Draw goal lines on activity chart
-   */
-  drawGoalLines(ctx, padding, chartWidth, chartHeight, goalRatios) {
-    ctx.strokeStyle = getComputedStyle(
-      document.documentElement
-    ).getPropertyValue('--text-secondary');
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-
-    Object.values(goalRatios).forEach((ratio) => {
-      const y = padding.top + chartHeight * (1 - ratio);
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(padding.left + chartWidth, y);
-      ctx.stroke();
-    });
-
-    ctx.setLineDash([]);
-  }
-
-  /**
-   * Draw activity chart legend
-   */
-  drawActivityLegend(ctx, width, height, padding) {
-    const legendY = height - padding.bottom + 40;
-    const legendItems = [
-      { color: '--accent-primary', label: 'Steps' },
-      { color: '--accent-success', label: 'Exercise (min)' },
-      { color: '--accent-warning', label: 'Water (L)' },
-    ];
-
-    let legendX = padding.left;
-    legendItems.forEach((item) => {
-      // Color square
-      ctx.fillStyle = getComputedStyle(
-        document.documentElement
-      ).getPropertyValue(item.color);
-      ctx.fillRect(legendX, legendY, 12, 12);
-
-      // Label
-      ctx.fillStyle = getComputedStyle(
-        document.documentElement
-      ).getPropertyValue('--text-primary');
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(item.label, legendX + 16, legendY + 9);
-
-      legendX += ctx.measureText(item.label).width + 40;
-    });
-  }
-
-  /**
-   * Get filtered activity data based on chart period
-   */
-  getActivityData() {
-    let logs = Object.values(this.dailyLogs);
-
-    if (this.chartPeriod !== 'all') {
-      const cutoffDate = this.getDateOffset(
-        this.currentDate,
-        -this.chartPeriod
-      );
-      logs = logs.filter((log) => log.date >= cutoffDate);
-    }
-
-    return logs
-      .map((log) => ({
-        date: log.date,
-        steps: log.steps || 0,
-        exercise: log.exerciseMinutes || 0,
-        water: log.water || 0,
-        wellness: log.wellnessScore || 0,
-      }))
-      .sort((a, b) => new Date(a.date) - new Date(b.date));
-  }
-
-  /**
-   * Draw "no data" message on canvas
-   */
-  drawNoDataMessage(ctx, width, height, message) {
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(
-      '--text-secondary'
-    );
-    ctx.font = '16px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(message, width / 2, height / 2);
-  }
-
-  /**
-   * Render streak calendar
-   */
-  renderStreakCalendar() {
-    const calendarContainer = document.getElementById('streakCalendar');
-    if (!calendarContainer) return;
-
-    const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
-
-    this.currentCalendarMonth = currentMonth;
-    this.currentCalendarYear = currentYear;
-
-    this.renderCalendarMonth(currentMonth, currentYear);
-  }
-
-  /**
-   * Navigate calendar months
-   */
-  navigateCalendar(direction) {
-    this.currentCalendarMonth += direction;
-
-    if (this.currentCalendarMonth > 11) {
-      this.currentCalendarMonth = 0;
-      this.currentCalendarYear++;
-    } else if (this.currentCalendarMonth < 0) {
-      this.currentCalendarMonth = 11;
-      this.currentCalendarYear--;
-    }
-
-    this.renderCalendarMonth(
-      this.currentCalendarMonth,
-      this.currentCalendarYear
-    );
-  }
-
-  /**
-   * Render calendar for specific month
-   */
-  renderCalendarMonth(month, year) {
-    const calendarContainer = document.getElementById('streakCalendar');
-    const monthNameEl = document.getElementById('currentMonth');
-
-    if (!calendarContainer || !monthNameEl) return;
-
-    // Update month display
-    const monthNames = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    monthNameEl.textContent = `${monthNames[month]} ${year}`;
-
-    // Clear existing calendar
-    calendarContainer.innerHTML = '';
-
-    // Create calendar grid
-    const calendarGrid = document.createElement('div');
-    calendarGrid.className = 'calendar-grid';
-
-    // Add day headers
-    const dayHeaders = document.createElement('div');
-    dayHeaders.className = 'calendar-header';
-    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    dayNames.forEach((day) => {
-      const dayLabel = document.createElement('div');
-      dayLabel.className = 'calendar-day-label';
-      dayLabel.textContent = day;
-      dayHeaders.appendChild(dayLabel);
-    });
-
-    calendarContainer.appendChild(dayHeaders);
-
-    // Calculate first day of month and number of days
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = (firstDay.getDay() + 6) % 7; // Adjust for Monday start
-
-    // Add empty cells for days before month starts
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      const emptyDay = document.createElement('div');
-      emptyDay.className = 'calendar-day other-month';
-      calendarGrid.appendChild(emptyDay);
-    }
-
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dayEl = document.createElement('div');
-      dayEl.className = 'calendar-day';
-      dayEl.textContent = day;
-
-      const dateString = `${year}-${String(month + 1).padStart(
-        2,
-        '0'
-      )}-${String(day).padStart(2, '0')}`;
-      const dayLog = this.dailyLogs[dateString];
-
-      // Apply styling based on streak completion
-      if (dateString === this.currentDate) {
-        dayEl.classList.add('today');
-      }
-
-      if (dayLog) {
-        const goalsmet = this.checkDayGoalsMet(dayLog);
-        if (goalsmet.all) {
-          dayEl.classList.add('streak-complete');
-        } else if (goalsmet.some) {
-          dayEl.classList.add('partial-complete');
-        }
-      } else {
-        dayEl.classList.add('no-data');
-      }
-
-      calendarGrid.appendChild(dayEl);
-    }
-
-    calendarContainer.appendChild(calendarGrid);
-  }
-
-  /**
-   * Check if day's goals were met
-   */
-  checkDayGoalsMet(dayLog) {
-    const goalsmet = {
-      steps: dayLog.steps >= this.currentUser.dailySteps,
-      exercise: dayLog.exerciseMinutes >= this.currentUser.dailyExercise,
-      water: dayLog.water >= this.currentUser.dailyWater,
-      wellness: dayLog.wellnessScore >= 3,
-    };
-
-    const weeklyWeight = this.checkWeeklyWeight(dayLog.date);
-
-    return {
-      some: Object.values(goalsmet).some((met) => met),
-      all: Object.values(goalsmet).every((met) => met) && weeklyWeight,
-    };
-  }
-
-  /**
-   * Load rewards tab content
-   */
-  loadRewardsTab() {
-    this.renderDefaultMilestones();
-    this.renderCustomRewards();
-    this.renderAchievementHistory();
-  }
-
-  /**
    * Initialize default milestones
    */
   initializeDefaultMilestones() {
     this.defaultMilestones = [
       // Streak milestones
-      {
-        type: 'streak',
-        value: 7,
-        title: '7 Day Streak',
-        description: 'Complete 7 consecutive days of goals',
-      },
-      {
-        type: 'streak',
-        value: 14,
-        title: '2 Week Streak',
-        description: 'Complete 14 consecutive days of goals',
-      },
-      {
-        type: 'streak',
-        value: 30,
-        title: '30 Day Streak',
-        description: 'Complete 30 consecutive days of goals',
-      },
-      {
-        type: 'streak',
-        value: 50,
-        title: '50 Day Streak',
-        description: 'Complete 50 consecutive days of goals',
-      },
-      {
-        type: 'streak',
-        value: 100,
-        title: '100 Day Streak',
-        description: 'Complete 100 consecutive days of goals',
-      },
-
-      // Weight loss milestones (10 lb increments)
+      { type: 'streak', value: 7, title: '7 Day Streak', description: 'Complete 7 consecutive days of goals' },
+      { type: 'streak', value: 14, title: '2 Week Streak', description: 'Complete 14 consecutive days of goals' },
+      { type: 'streak', value: 30, title: '30 Day Streak', description: 'Complete 30 consecutive days of goals' },
+      { type: 'streak', value: 50, title: '50 Day Streak', description: 'Complete 50 consecutive days of goals' },
+      { type: 'streak', value: 100, title: '100 Day Streak', description: 'Complete 100 consecutive days of goals' },
+      // Weight loss milestones
       ...this.generateWeightMilestones(),
     ];
   }
@@ -1496,10 +183,9 @@ class BribeYourselfFit {
     if (!this.currentUser) return [];
 
     const milestones = [];
-    const totalWeightToLose =
-      this.currentUser.startingWeight - this.currentUser.goalWeight;
+    const totalWeightToLose = this.currentUser.startingWeight - this.currentUser.goalWeight;
 
-    if (totalWeightToLose <= 0) return milestones; // No weight loss needed
+    if (totalWeightToLose <= 0) return milestones;
 
     // 10 lb milestones
     for (let lost = 10; lost <= totalWeightToLose; lost += 10) {
@@ -1511,183 +197,13 @@ class BribeYourselfFit {
       });
     }
 
-    // Bigger milestones for 25 lb increments
-    for (let lost = 25; lost <= totalWeightToLose; lost += 25) {
-      milestones.push({
-        type: 'weight',
-        value: lost,
-        title: `${lost} lbs Lost - BIG WIN!`,
-        description: `Amazing achievement: Lost ${lost} pounds!`,
-        isBig: true,
-      });
-    }
-
-    // Even bigger milestones for 50 lb increments
-    for (let lost = 50; lost <= totalWeightToLose; lost += 50) {
-      milestones.push({
-        type: 'weight',
-        value: lost,
-        title: `${lost} lbs Lost - MAJOR MILESTONE!`,
-        description: `Incredible transformation: Lost ${lost} pounds!`,
-        isMajor: true,
-      });
-    }
-
     return milestones;
-  }
-
-  /**
-   * Render default milestones
-   */
-  renderDefaultMilestones() {
-    const container = document.getElementById('defaultMilestones');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    // Initialize default milestones if they don't exist
-    if (!this.defaultMilestones) {
-      this.initializeDefaultMilestones();
-    }
-
-    // Safety check in case defaultMilestones is still undefined
-    if (!this.defaultMilestones || !Array.isArray(this.defaultMilestones)) {
-      container.innerHTML =
-        '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">Unable to load milestones. Please refresh the page.</p>';
-      return;
-    }
-
-    this.defaultMilestones.forEach((milestone) => {
-      const milestoneEl = this.createMilestoneElement(milestone);
-      container.appendChild(milestoneEl);
-    });
-  }
-
-  /**
-   * Create milestone element
-   */
-  createMilestoneElement(milestone) {
-    const el = document.createElement('div');
-    el.className = 'milestone-item';
-
-    const isAchieved = this.isMilestoneAchieved(milestone);
-    const isClaimed = this.isMilestoneClaimedInAchievements(milestone);
-
-    if (isAchieved && !isClaimed) {
-      el.classList.add('achieved');
-    } else if (isClaimed) {
-      el.classList.add('claimed');
-    }
-
-    const statusText = isClaimed
-      ? 'Claimed'
-      : isAchieved
-      ? 'Achieved'
-      : 'Pending';
-    const statusClass = isClaimed
-      ? 'claimed'
-      : isAchieved
-      ? 'achieved'
-      : 'pending';
-
-    // Get custom reward for this milestone
-    const customReward = this.getCustomRewardForMilestone(milestone);
-    const rewardText = customReward
-      ? customReward.description
-      : 'Set custom reward...';
-
-    el.innerHTML = `
-            <div class="milestone-header">
-                <div class="milestone-title">${milestone.title}</div>
-                <div class="milestone-status ${statusClass}">${statusText}</div>
-            </div>
-            <div class="milestone-description">${milestone.description}</div>
-            <div class="milestone-reward">
-                <div class="reward-text">${rewardText}</div>
-                ${
-                  isAchieved && !isClaimed
-                    ? `<button class="claim-btn" onclick="app.claimMilestone('${milestone.type}', ${milestone.value})">Claim Reward</button>`
-                    : ''
-                }
-            </div>
-        `;
-
-    return el;
-  }
-
-  /**
-   * Check if milestone is achieved
-   */
-  isMilestoneAchieved(milestone) {
-    if (milestone.type === 'streak') {
-      return this.streaks.overall >= milestone.value;
-    } else if (milestone.type === 'weight') {
-      const weightLost =
-        this.currentUser.startingWeight - this.currentUser.currentWeight;
-      return weightLost >= milestone.value;
-    }
-    return false;
-  }
-
-  /**
-   * Check if milestone has been claimed (exists in achievements)
-   */
-  isMilestoneClaimedInAchievements(milestone) {
-    return this.achievements.some(
-      (achievement) =>
-        achievement.type === milestone.type &&
-        achievement.value === milestone.value
-    );
-  }
-
-  /**
-   * Get custom reward for milestone
-   */
-  getCustomRewardForMilestone(milestone) {
-    return this.customRewards.find(
-      (reward) =>
-        reward.type === milestone.type &&
-        (reward.streakDays === milestone.value ||
-          reward.weightLoss === milestone.value)
-    );
-  }
-
-  /**
-   * Claim milestone reward
-   */
-  claimMilestone(type, value) {
-    const milestone = this.defaultMilestones.find(
-      (m) => m.type === type && m.value === value
-    );
-    if (!milestone || !this.isMilestoneAchieved(milestone)) return;
-
-    // Add to achievements
-    const achievement = {
-      type: milestone.type,
-      value: milestone.value,
-      title: milestone.title,
-      description: milestone.description,
-      customReward: this.getCustomRewardForMilestone(milestone),
-      claimedDate: new Date().toISOString(),
-      claimedStreak: this.streaks.overall,
-      claimedWeight: this.currentUser.currentWeight,
-    };
-
-    this.achievements.push(achievement);
-    this.saveData();
-
-    // Show celebration modal
-    this.showAchievementModal(achievement);
-
-    // Re-render milestones
-    this.renderDefaultMilestones();
-    this.renderAchievementHistory();
   }
 
   /**
    * Handle custom reward form submission
    */
-  handleCustomReward(e) {
+  async handleCustomReward(e) {
     e.preventDefault();
 
     const formData = new FormData(e.target);
@@ -1728,15 +244,26 @@ class BribeYourselfFit {
     }
 
     this.customRewards.push(reward);
-    this.saveData();
 
-    // Reset form and update display
-    e.target.reset();
-    this.updateRewardCriteria();
-    this.renderCustomRewards();
-    this.renderDefaultMilestones();
-
-    this.showSuccess('Custom reward added successfully!');
+    // Save to cloud
+    this.showSyncStatus('🔄 Saving to cloud...');
+    
+    try {
+      await this.saveDataToCloud();
+      
+      // Reset form and update display
+      e.target.reset();
+      this.updateRewardCriteria();
+      this.renderCustomRewards();
+      this.renderDefaultMilestones();
+      
+      this.showSuccess('Custom reward added and saved to cloud!');
+      this.showSyncStatus('☁️ Synced');
+    } catch (error) {
+      console.error('Failed to save custom reward:', error);
+      this.showError('Failed to save reward to cloud. Please try again.');
+      this.showSyncStatus('❌ Sync failed');
+    }
   }
 
   /**
@@ -1757,168 +284,148 @@ class BribeYourselfFit {
   }
 
   /**
-   * Render custom rewards list
+   * Load rewards tab content
    */
-  renderCustomRewards() {
-    const container = document.getElementById('customRewardsList');
+  loadRewardsTab() {
+    this.renderDefaultMilestones();
+    this.renderCustomRewards();
+    this.renderAchievementHistory();
+  }
+
+  /**
+   * Render default milestones
+   */
+  renderDefaultMilestones() {
+    const container = document.getElementById('defaultMilestones');
     if (!container) return;
 
     container.innerHTML = '';
 
-    if (this.customRewards.length === 0) {
-      container.innerHTML =
-        '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No custom rewards added yet.</p>';
+    if (!this.defaultMilestones) {
+      this.initializeDefaultMilestones();
+    }
+
+    if (!this.defaultMilestones || !Array.isArray(this.defaultMilestones)) {
+      container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">Unable to load milestones. Please refresh the page.</p>';
       return;
     }
 
-    this.customRewards.forEach((reward, index) => {
-      const rewardEl = this.createCustomRewardElement(reward, index);
-      container.appendChild(rewardEl);
+    this.defaultMilestones.forEach((milestone) => {
+      const milestoneEl = this.createMilestoneElement(milestone);
+      container.appendChild(milestoneEl);
     });
   }
 
   /**
-   * Create custom reward element
+   * Create milestone element
    */
-  createCustomRewardElement(reward, index) {
+  createMilestoneElement(milestone) {
     const el = document.createElement('div');
-    el.className = 'reward-item';
+    el.className = 'milestone-item';
 
-    let criteriaText = '';
-    if (reward.type === 'streak') {
-      criteriaText = `${reward.streakDays} day streak`;
-    } else if (reward.type === 'weight') {
-      criteriaText = `${reward.weightLoss} lbs lost`;
-    } else if (reward.type === 'combo') {
-      criteriaText = `${reward.streakDays} day streak + ${reward.weightLoss} lbs lost`;
+    const isAchieved = this.isMilestoneAchieved(milestone);
+    const isClaimed = this.isMilestoneClaimedInAchievements(milestone);
+
+    if (isAchieved && !isClaimed) {
+      el.classList.add('achieved');
+    } else if (isClaimed) {
+      el.classList.add('claimed');
     }
 
-    el.innerHTML = `
-            <div class="reward-info">
-                <div class="reward-title">${reward.description}</div>
-                <div class="reward-criteria-text">${criteriaText}</div>
-            </div>
-            <div class="reward-actions">
-                <button class="btn btn-small btn-danger" onclick="app.deleteCustomReward(${index})">Delete</button>
-            </div>
-        `;
+    const statusText = isClaimed ? 'Claimed' : isAchieved ? 'Achieved' : 'Pending';
+    const statusClass = isClaimed ? 'claimed' : isAchieved ? 'achieved' : 'pending';
 
-    return el;
-  }
-
-  /**
-   * Delete custom reward
-   */
-  deleteCustomReward(index) {
-    if (confirm('Are you sure you want to delete this reward?')) {
-      this.customRewards.splice(index, 1);
-      this.saveData();
-      this.renderCustomRewards();
-      this.renderDefaultMilestones();
-      this.showSuccess('Custom reward deleted.');
-    }
-  }
-
-  /**
-   * Render achievement history
-   */
-  renderAchievementHistory() {
-    const container = document.getElementById('achievementHistory');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    if (this.achievements.length === 0) {
-      container.innerHTML =
-        '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No achievements yet. Keep working towards your goals!</p>';
-      return;
-    }
-
-    // Sort achievements by date (newest first)
-    const sortedAchievements = [...this.achievements].sort(
-      (a, b) => new Date(b.claimedDate) - new Date(a.claimedDate)
-    );
-
-    sortedAchievements.forEach((achievement) => {
-      const achievementEl = this.createAchievementElement(achievement);
-      container.appendChild(achievementEl);
-    });
-  }
-
-  /**
-   * Create achievement element
-   */
-  createAchievementElement(achievement) {
-    const el = document.createElement('div');
-    el.className = 'achievement-item';
-
-    const claimedDate = new Date(achievement.claimedDate).toLocaleDateString();
-    const rewardText = achievement.customReward
-      ? ` - Reward: ${achievement.customReward.description}`
-      : '';
-
-    el.innerHTML = `
-            <div class="achievement-header">
-                <div class="achievement-title">${achievement.title}</div>
-                <div class="achievement-date">${claimedDate}</div>
-            </div>
-            <div class="achievement-description">
-                ${achievement.description}${rewardText}
-            </div>
-        `;
-
-    return el;
-  }
-
-  /**
-   * Check for new achievements after daily log
-   */
-  checkAchievements() {
-    const newAchievements = [];
-
-    // Check streak milestones
-    this.defaultMilestones
-      .filter((m) => m.type === 'streak')
-      .forEach((milestone) => {
-        if (
-          this.isMilestoneAchieved(milestone) &&
-          !this.isMilestoneClaimedInAchievements(milestone)
-        ) {
-          newAchievements.push(milestone);
-        }
-      });
-
-    // Check weight milestones
-    this.defaultMilestones
-      .filter((m) => m.type === 'weight')
-      .forEach((milestone) => {
-        if (
-          this.isMilestoneAchieved(milestone) &&
-          !this.isMilestoneClaimedInAchievements(milestone)
-        ) {
-          newAchievements.push(milestone);
-        }
-      });
-
-    // Show achievement notifications
-    if (newAchievements.length > 0) {
-      newAchievements.forEach((achievement) => {
-        this.showAchievementNotification(achievement);
-      });
-    }
-  }
-
-  /**
-   * Show achievement notification
-   */
-  showAchievementNotification(milestone) {
     const customReward = this.getCustomRewardForMilestone(milestone);
-    const rewardText = customReward
-      ? ` Your reward: ${customReward.description}`
-      : '';
+    const rewardText = customReward ? customReward.description : 'Set custom reward...';
 
-    const message = `🎉 Achievement Unlocked: ${milestone.title}!${rewardText} Visit the Rewards tab to claim it.`;
-    this.showSuccess(message, 5000);
+    el.innerHTML = `
+      <div class="milestone-header">
+        <div class="milestone-title">${milestone.title}</div>
+        <div class="milestone-status ${statusClass}">${statusText}</div>
+      </div>
+      <div class="milestone-description">${milestone.description}</div>
+      <div class="milestone-reward">
+        <div class="reward-text">${rewardText}</div>
+        ${isAchieved && !isClaimed ? `<button class="claim-btn" onclick="app.claimMilestone('${milestone.type}', ${milestone.value})">Claim Reward</button>` : ''}
+      </div>
+    `;
+
+    return el;
+  }
+
+  /**
+   * Check if milestone is achieved
+   */
+  isMilestoneAchieved(milestone) {
+    if (milestone.type === 'streak') {
+      return this.streaks.overall >= milestone.value;
+    } else if (milestone.type === 'weight') {
+      const weightLost = this.currentUser.startingWeight - this.currentUser.currentWeight;
+      return weightLost >= milestone.value;
+    }
+    return false;
+  }
+
+  /**
+   * Check if milestone has been claimed
+   */
+  isMilestoneClaimedInAchievements(milestone) {
+    return this.achievements.some(
+      (achievement) => achievement.type === milestone.type && achievement.value === milestone.value
+    );
+  }
+
+  /**
+   * Get custom reward for milestone
+   */
+  getCustomRewardForMilestone(milestone) {
+    return this.customRewards.find(
+      (reward) =>
+        reward.type === milestone.type &&
+        (reward.streakDays === milestone.value || reward.weightLoss === milestone.value)
+    );
+  }
+
+  /**
+   * Claim milestone reward
+   */
+  async claimMilestone(type, value) {
+    const milestone = this.defaultMilestones.find((m) => m.type === type && m.value === value);
+    if (!milestone || !this.isMilestoneAchieved(milestone)) return;
+
+    // Add to achievements
+    const achievement = {
+      type: milestone.type,
+      value: milestone.value,
+      title: milestone.title,
+      description: milestone.description,
+      customReward: this.getCustomRewardForMilestone(milestone),
+      claimedDate: new Date().toISOString(),
+      claimedStreak: this.streaks.overall,
+      claimedWeight: this.currentUser.currentWeight,
+    };
+
+    this.achievements.push(achievement);
+
+    // Save to cloud
+    this.showSyncStatus('🔄 Saving to cloud...');
+    
+    try {
+      await this.saveDataToCloud();
+      
+      // Show celebration modal
+      this.showAchievementModal(achievement);
+      
+      // Re-render displays
+      this.renderDefaultMilestones();
+      this.renderAchievementHistory();
+      
+      this.showSyncStatus('☁️ Synced');
+    } catch (error) {
+      console.error('Failed to save achievement:', error);
+      this.showError('Failed to save achievement to cloud. Please try again.');
+      this.showSyncStatus('❌ Sync failed');
+    }
   }
 
   /**
@@ -1962,12 +469,12 @@ class BribeYourselfFit {
     modal.className = 'modal';
 
     modal.innerHTML = `
-            <div class="modal-content">
-                <h2 class="modal-title">Achievement!</h2>
-                <p class="modal-message"></p>
-                <button class="modal-btn" onclick="app.closeAchievementModal()">Awesome!</button>
-            </div>
-        `;
+      <div class="modal-content">
+        <h2 class="modal-title">Achievement!</h2>
+        <p class="modal-message"></p>
+        <button class="modal-btn" onclick="app.closeAchievementModal()">Awesome!</button>
+      </div>
+    `;
 
     return modal;
   }
@@ -1980,6 +487,288 @@ class BribeYourselfFit {
     if (modal) {
       modal.classList.remove('show');
     }
+  }
+
+  /**
+   * Render custom rewards list
+   */
+  renderCustomRewards() {
+    const container = document.getElementById('customRewardsList');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (this.customRewards.length === 0) {
+      container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No custom rewards added yet.</p>';
+      return;
+    }
+
+    this.customRewards.forEach((reward, index) => {
+      const rewardEl = this.createCustomRewardElement(reward, index);
+      container.appendChild(rewardEl);
+    });
+  }
+
+  /**
+   * Create custom reward element
+   */
+  createCustomRewardElement(reward, index) {
+    const el = document.createElement('div');
+    el.className = 'reward-item';
+
+    let criteriaText = '';
+    if (reward.type === 'streak') {
+      criteriaText = `${reward.streakDays} day streak`;
+    } else if (reward.type === 'weight') {
+      criteriaText = `${reward.weightLoss} lbs lost`;
+    } else if (reward.type === 'combo') {
+      criteriaText = `${reward.streakDays} day streak + ${reward.weightLoss} lbs lost`;
+    }
+
+    el.innerHTML = `
+      <div class="reward-info">
+        <div class="reward-title">${reward.description}</div>
+        <div class="reward-criteria-text">${criteriaText}</div>
+      </div>
+      <div class="reward-actions">
+        <button class="btn btn-small btn-danger" onclick="app.deleteCustomReward(${index})">Delete</button>
+      </div>
+    `;
+
+    return el;
+  }
+
+  /**
+   * Delete custom reward
+   */
+  async deleteCustomReward(index) {
+    if (!confirm('Are you sure you want to delete this reward?')) return;
+
+    this.customRewards.splice(index, 1);
+
+    // Save to cloud
+    this.showSyncStatus('🔄 Saving to cloud...');
+    
+    try {
+      await this.saveDataToCloud();
+      this.renderCustomRewards();
+      this.renderDefaultMilestones();
+      this.showSuccess('Custom reward deleted.');
+      this.showSyncStatus('☁️ Synced');
+    } catch (error) {
+      console.error('Failed to delete reward:', error);
+      this.showError('Failed to delete reward from cloud. Please try again.');
+      this.showSyncStatus('❌ Sync failed');
+    }
+  }
+
+  /**
+   * Render achievement history
+   */
+  renderAchievementHistory() {
+    const container = document.getElementById('achievementHistory');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (this.achievements.length === 0) {
+      container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No achievements yet. Keep working towards your goals!</p>';
+      return;
+    }
+
+    // Sort achievements by date (newest first)
+    const sortedAchievements = [...this.achievements].sort(
+      (a, b) => new Date(b.claimedDate) - new Date(a.claimedDate)
+    );
+
+    sortedAchievements.forEach((achievement) => {
+      const achievementEl = this.createAchievementElement(achievement);
+      container.appendChild(achievementEl);
+    });
+  }
+
+  /**
+   * Create achievement element
+   */
+  createAchievementElement(achievement) {
+    const el = document.createElement('div');
+    el.className = 'achievement-item';
+
+    const claimedDate = new Date(achievement.claimedDate).toLocaleDateString();
+    const rewardText = achievement.customReward ? ` - Reward: ${achievement.customReward.description}` : '';
+
+    el.innerHTML = `
+      <div class="achievement-header">
+        <div class="achievement-title">${achievement.title}</div>
+        <div class="achievement-date">${claimedDate}</div>
+      </div>
+      <div class="achievement-description">
+        ${achievement.description}${rewardText}
+      </div>
+    `;
+
+    return el;
+  }
+
+  /**
+   * Check for new achievements after daily log
+   */
+  checkAchievements() {
+    const newAchievements = [];
+
+    // Check streak milestones
+    this.defaultMilestones
+      .filter((m) => m.type === 'streak')
+      .forEach((milestone) => {
+        if (this.isMilestoneAchieved(milestone) && !this.isMilestoneClaimedInAchievements(milestone)) {
+          newAchievements.push(milestone);
+        }
+      });
+
+    // Check weight milestones
+    this.defaultMilestones
+      .filter((m) => m.type === 'weight')
+      .forEach((milestone) => {
+        if (this.isMilestoneAchieved(milestone) && !this.isMilestoneClaimedInAchievements(milestone)) {
+          newAchievements.push(milestone);
+        }
+      });
+
+    // Show achievement notifications
+    if (newAchievements.length > 0) {
+      newAchievements.forEach((achievement) => {
+        this.showAchievementNotification(achievement);
+      });
+    }
+  }
+
+  /**
+   * Show achievement notification
+   */
+  showAchievementNotification(milestone) {
+    const customReward = this.getCustomRewardForMilestone(milestone);
+    const rewardText = customReward ? ` Your reward: ${customReward.description}` : '';
+
+    const message = `🎉 Achievement Unlocked: ${milestone.title}!${rewardText} Visit the Rewards tab to claim it.`;
+    this.showSuccess(message, 5000);
+  }
+
+  /**
+   * Basic chart rendering methods
+   */
+  renderWeightChart() {
+    // Simplified chart rendering for this version
+    const canvas = document.getElementById('weightChart');
+    if (!canvas) return;
+
+    const container = canvas.parentElement;
+    const isMobile = window.innerWidth <= 768;
+    const pixelRatio = isMobile ? 1 : window.devicePixelRatio || 1;
+    const containerWidth = container.offsetWidth || (isMobile ? 350 : 800);
+    const containerHeight = container.offsetHeight || (isMobile ? 250 : 400);
+
+    canvas.width = containerWidth * pixelRatio;
+    canvas.height = containerHeight * pixelRatio;
+    canvas.style.width = containerWidth + 'px';
+    canvas.style.height = containerHeight + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(pixelRatio, pixelRatio);
+
+    const width = containerWidth;
+    const height = containerHeight;
+
+    // Get weight data
+    const weightData = this.getWeightData();
+    if (weightData.length === 0) {
+      this.drawNoDataMessage(ctx, width, height, 'No weight data available');
+      return;
+    }
+
+    // Simple chart rendering (basic version for JSONBin implementation)
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Weight Chart - Basic Version', width / 2, height / 2);
+    ctx.fillText(`${weightData.length} weight entries logged`, width / 2, height / 2 + 30);
+  }
+
+  renderActivityChart() {
+    // Simplified activity chart
+    const canvas = document.getElementById('activityChart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-primary');
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Activity Chart - Basic Version', canvas.width / 2, canvas.height / 2);
+  }
+
+  renderStreakCalendar() {
+    // Simplified calendar
+    const container = document.getElementById('streakCalendar');
+    if (!container) return;
+
+    container.innerHTML = '<p style="text-align: center; padding: 2rem;">Calendar View - Basic Version</p>';
+  }
+
+  /**
+   * Get filtered weight data based on chart period
+   */
+  getWeightData() {
+    const weightEntries = Object.values(this.dailyLogs)
+      .filter((log) => log.weight !== null)
+      .map((log) => ({ date: log.date, weight: log.weight }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    if (this.chartPeriod === 'all') {
+      return weightEntries;
+    }
+
+    const cutoffDate = this.getDateOffset(this.currentDate, -this.chartPeriod);
+    return weightEntries.filter((entry) => entry.date >= cutoffDate);
+  }
+
+  /**
+   * Draw "no data" message on canvas
+   */
+  drawNoDataMessage(ctx, width, height, message) {
+    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary');
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(message, width / 2, height / 2);
+  }
+
+  /**
+   * Set chart period and update charts
+   */
+  setChartPeriod(period) {
+    this.chartPeriod = period;
+
+    // Update chart button states
+    document.querySelectorAll('.chart-btn').forEach((btn) => {
+      if ((btn.dataset.period && parseInt(btn.dataset.period) === period) || (btn.dataset.period === 'all' && period === 'all')) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    // Re-render charts
+    this.renderWeightChart();
+    this.renderActivityChart();
+  }
+
+  /**
+   * Calendar navigation placeholder
+   */
+  navigateCalendar(direction) {
+    // Simplified calendar navigation
+    console.log('Calendar navigation:', direction);
   }
 
   /**
@@ -2001,8 +790,7 @@ class BribeYourselfFit {
   updateThemeToggle(theme) {
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) {
-      themeToggle.textContent =
-        theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+      themeToggle.textContent = theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
     }
   }
 
@@ -2028,10 +816,16 @@ class BribeYourselfFit {
   showSetupScreen() {
     document.getElementById('setupScreen').classList.remove('hidden');
     document.getElementById('appScreen').classList.add('hidden');
+    
+    // Hide settings button
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) {
+      settingsBtn.style.display = 'none';
+    }
   }
 
   /**
-   * Show main app screen - UPDATED VERSION
+   * Show main app screen
    */
   showAppScreen() {
     document.getElementById('setupScreen').classList.add('hidden');
@@ -2039,6 +833,12 @@ class BribeYourselfFit {
 
     // Initialize default milestones when showing app
     this.initializeDefaultMilestones();
+    
+    // Show settings button
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) {
+      settingsBtn.style.display = 'inline-block';
+    }
   }
 
   /**
@@ -2078,481 +878,37 @@ class BribeYourselfFit {
   showError(message) {
     alert(`Error: ${message}`);
   }
-
-  /**
-   * Export data as JSON
-   */
-  exportData() {
-    const exportData = {
-      user: this.currentUser,
-      dailyLogs: this.dailyLogs,
-      streaks: this.streaks,
-      customRewards: this.customRewards,
-      achievements: this.achievements,
-      exportDate: new Date().toISOString(),
-      version: '1.0',
-    };
-
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `bribeYourselfFit_backup_${
-      new Date().toISOString().split('T')[0]
-    }.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    this.showSuccess('Data exported successfully!');
-  }
-
-  /**
-   * Import data from JSON file
-   */
-  importData(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const importedData = JSON.parse(e.target.result);
-
-        // Validate imported data structure
-        if (!this.validateImportData(importedData)) {
-          this.showError('Invalid backup file format');
-          return;
-        }
-
-        // Confirm import
-        if (
-          !confirm(
-            'This will replace all current data. Are you sure you want to import?'
-          )
-        ) {
-          return;
-        }
-
-        // Import data
-        this.currentUser = importedData.user;
-        this.dailyLogs = importedData.dailyLogs || {};
-        this.streaks = importedData.streaks || this.initializeStreaks();
-        this.customRewards = importedData.customRewards || [];
-        this.achievements = importedData.achievements || [];
-
-        // Save imported data
-        this.saveData();
-
-        // Refresh display
-        this.updateDashboard();
-        this.initializeDefaultMilestones();
-
-        this.showSuccess('Data imported successfully!');
-
-        // Refresh page to ensure clean state
-        setTimeout(() => {
-          location.reload();
-        }, 1500);
-      } catch (error) {
-        console.error('Import error:', error);
-        this.showError('Failed to import data. Please check the file format.');
-      }
-    };
-
-    reader.readAsText(file);
-  }
-
-  /**
-   * Validate imported data structure
-   */
-  validateImportData(data) {
-    return (
-      data &&
-      data.user &&
-      typeof data.user.startingWeight === 'number' &&
-      typeof data.user.goalWeight === 'number' &&
-      typeof data.user.dailySteps === 'number' &&
-      typeof data.user.dailyExercise === 'number' &&
-      typeof data.user.dailyWater === 'number'
-    );
-  }
-
-  /**
-   * Reset all data (for development/testing)
-   */
-  resetAllData() {
-    if (
-      !confirm(
-        'This will delete ALL data including your profile, logs, and achievements. This cannot be undone. Are you sure?'
-      )
-    ) {
-      return;
-    }
-
-    if (!confirm('Really sure? This will permanently delete everything!')) {
-      return;
-    }
-
-    // Clear localStorage
-    localStorage.removeItem('byf_user');
-    localStorage.removeItem('byf_dailyLogs');
-    localStorage.removeItem('byf_streaks');
-    localStorage.removeItem('byf_customRewards');
-    localStorage.removeItem('byf_achievements');
-
-    // Reset app state
-    this.currentUser = null;
-    this.dailyLogs = {};
-    this.streaks = {};
-    this.customRewards = [];
-    this.achievements = [];
-
-    this.showSuccess('All data has been reset. Redirecting to setup...');
-
-    // Refresh page after short delay
-    setTimeout(() => {
-      location.reload();
-    }, 2000);
-  }
-
-  /**
-   * Get app statistics for debugging/info
-   */
-  getAppStats() {
-    const startTime = performance.now(); // Add this line
-    const totalLogs = Object.keys(this.dailyLogs).length;
-    const weightLogs = Object.values(this.dailyLogs).filter(
-      (log) => log.weight !== null
-    ).length;
-    const totalExerciseMinutes = Object.values(this.dailyLogs).reduce(
-      (sum, log) => sum + (log.exerciseMinutes || 0),
-      0
-    );
-    const totalSteps = Object.values(this.dailyLogs).reduce(
-      (sum, log) => sum + (log.steps || 0),
-      0
-    );
-    const totalWater = Object.values(this.dailyLogs).reduce(
-      (sum, log) => sum + (log.water || 0),
-      0
-    );
-
-    const stats = {
-      profileCreated: this.currentUser?.setupDate,
-      totalDaysLogged: totalLogs,
-      weightEntriesLogged: weightLogs,
-      currentStreak: this.streaks.overall,
-      longestStreak: Math.max(
-        this.streaks.steps,
-        this.streaks.exercise,
-        this.streaks.water,
-        this.streaks.wellness,
-        this.streaks.overall
-      ),
-      totalExerciseMinutes,
-      totalSteps,
-      totalWaterLiters: totalWater,
-      achievementsUnlocked: this.achievements.length,
-      customRewards: this.customRewards.length,
-    };
-
-    if (this.currentUser) {
-      stats.weightProgress = {
-        starting: this.currentUser.startingWeight,
-        current: this.currentUser.currentWeight,
-        goal: this.currentUser.goalWeight,
-        lost: this.currentUser.startingWeight - this.currentUser.currentWeight,
-        remaining: Math.abs(
-          this.currentUser.currentWeight - this.currentUser.goalWeight
-        ),
-      };
-    }
-
-    const loadTime = performance.now() - startTime;
-    stats.performanceMs = Math.round(loadTime * 100) / 100;
-
-    console.table(stats);
-    return stats;
-  }
-
-  /**
-   * Debug method to check form and data state
-   */
-  debugFormState() {
-    console.log('=== FORM DEBUG INFO ===');
-    console.log('Current date:', this.currentDate);
-    console.log("Today's log:", this.dailyLogs[this.currentDate]);
-    console.log('All daily logs:', this.dailyLogs);
-
-    // Check form elements
-    const weightInput = document.getElementById('todayWeight');
-    const stepsInput = document.getElementById('todaySteps');
-    const exerciseInput = document.getElementById('todayExerciseMinutes');
-    const waterInput = document.getElementById('todayWater');
-
-    console.log('Form elements found:', {
-      weight: !!weightInput,
-      steps: !!stepsInput,
-      exercise: !!exerciseInput,
-      water: !!waterInput,
-    });
-
-    console.log('Form values:', {
-      weight: weightInput?.value,
-      steps: stepsInput?.value,
-      exercise: exerciseInput?.value,
-      water: waterInput?.value,
-    });
-
-    console.log(
-      'Exercise checkboxes:',
-      Array.from(document.querySelectorAll('.exercise-checkbox:checked')).map(
-        (cb) => cb.value
-      )
-    );
-
-    console.log(
-      'Wellness checkboxes:',
-      Array.from(document.querySelectorAll('.wellness-checkbox:checked')).map(
-        (cb) => cb.dataset.wellness
-      )
-    );
-    console.log('=====================');
-  }
 }
-
-/**
- * Service Worker Registration for PWA capabilities
- */
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      const registration = await navigator.serviceWorker.register('./sw.js');
-      console.log(
-        'Service Worker registered successfully:',
-        registration.scope
-      );
-
-      // Listen for updates
-      registration.addEventListener('updatefound', () => {
-        console.log('Service Worker update found');
-      });
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
-    }
-  });
-}
-
-// PWA Install Prompt
-window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('PWA install prompt available');
-  e.preventDefault();
-  window.app.deferredPrompt = e;
-  window.app.showInstallPrompt();
-});
-
-window.addEventListener('appinstalled', () => {
-  console.log('PWA installed successfully');
-  window.app.deferredPrompt = null;
-});
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   // Create global app instance
   window.app = new BribeYourselfFit();
 
-  // Add some helpful global functions for development
+  // Add helpful global functions for development
   window.exportData = () => app.exportData();
   window.resetData = () => app.resetAllData();
-  window.getStats = () => app.getAppStats();
-  window.debugForm = () => app.debugFormState();
 
-  // Add import function handler
-  window.handleFileImport = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      app.importData(file);
-    }
-  };
-
-  console.log('🎉 BribeYourselfFit initialized successfully!');
+  console.log('🌐 BribeYourselfFit JSONBin Cloud Version initialized!');
   console.log('Development commands available:');
   console.log('- exportData() - Export your data');
   console.log('- resetData() - Reset all data (careful!)');
-  console.log('- getStats() - View app statistics');
-  console.log('- debugForm() - Debug form state and data');
-});
-
-/**
- * Service Worker Registration for PWA capabilities
- */
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      const registration = await navigator.serviceWorker.register('./sw.js');
-      console.log(
-        'Service Worker registered successfully:',
-        registration.scope
-      );
-
-      // Listen for updates
-      registration.addEventListener('updatefound', () => {
-        console.log('Service Worker update found');
-      });
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
-    }
-  });
-}
-
-// PWA Install Prompt
-window.addEventListener('beforeinstallprompt', (e) => {
-  console.log('PWA install prompt available');
-  e.preventDefault();
-  window.app.deferredPrompt = e;
-  window.app.showInstallPrompt();
-});
-
-window.addEventListener('appinstalled', () => {
-  console.log('PWA installed successfully');
-  window.app.deferredPrompt = null;
-});
-
-/**
- * Handle keyboard shortcuts for accessibility
- */
-document.addEventListener('keydown', (e) => {
-  // Tab navigation shortcuts
-  if (e.altKey) {
-    switch (e.key) {
-      case '1':
-        e.preventDefault();
-        if (window.app) window.app.switchTab('dashboard');
-        break;
-      case '2':
-        e.preventDefault();
-        if (window.app) window.app.switchTab('charts');
-        break;
-      case '3':
-        e.preventDefault();
-        if (window.app) window.app.switchTab('rewards');
-        break;
-      case 't':
-        e.preventDefault();
-        if (window.app) window.app.toggleTheme();
-        break;
-    }
-  }
-});
-
-/**
- * Handle window beforeunload to prevent data loss
- */
-window.addEventListener('beforeunload', (e) => {
-  // Check if there are unsaved changes (basic check)
-  const forms = document.querySelectorAll('form');
-  let hasUnsavedData = false;
-
-  forms.forEach((form) => {
-    const formData = new FormData(form);
-    for (let [key, value] of formData.entries()) {
-      if (value && value.toString().trim() !== '') {
-        hasUnsavedData = true;
-        break;
-      }
-    }
-  });
-
-  if (hasUnsavedData) {
-    e.preventDefault();
-    e.returnValue = 'You have unsaved data. Are you sure you want to leave?';
-    return e.returnValue;
-  }
-});
-
-/**
- * Performance monitoring
- */
-const performanceObserver = new PerformanceObserver((list) => {
-  const entries = list.getEntries();
-  entries.forEach((entry) => {
-    if (entry.entryType === 'navigation') {
-      console.log(
-        `Page load time: ${entry.loadEventEnd - entry.loadEventStart}ms`
-      );
-    }
-  });
-});
-
-if (typeof PerformanceObserver !== 'undefined') {
-  performanceObserver.observe({ entryTypes: ['navigation'] });
-}
-
-/**
- * Error handling for uncaught errors
- */
-window.addEventListener('error', (e) => {
-  console.error('Uncaught error:', e.error);
-  if (window.app) {
-    window.app.showError(
-      'An unexpected error occurred. Please refresh the page.'
-    );
-  }
-});
-
-window.addEventListener('unhandledrejection', (e) => {
-  console.error('Unhandled promise rejection:', e.reason);
-  if (window.app) {
-    window.app.showError('An unexpected error occurred. Please try again.');
-  }
-});
-
-/**
- * Utility functions for date manipulation and formatting
- */
-const DateUtils = {
-  /**
-   * Format date for display
+}); Initialize the application
    */
-  formatDate(dateString, options = {}) {
-    const date = new Date(dateString);
-    const defaultOptions = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    };
-    return date.toLocaleDateString('en-US', { ...defaultOptions, ...options });
-  },
+  async init() {
+    await this.loadJsonBinConfig();
+    this.setupEventListeners();
+    this.updateCurrentDate();
 
-  /**
-   * Get days between two dates
-   */
-  daysBetween(date1, date2) {
-    const oneDay = 24 * 60 * 60 * 1000;
-    const firstDate = new Date(date1);
-    const secondDate = new Date(date2);
-    return Math.round(Math.abs((firstDate - secondDate) / oneDay));
-  },
-
-  /**
-   * Check if date is today
-   */
-  isToday(dateString) {
-    const today = new Date().toISOString().split('T')[0];
-    return dateString === today;
-  },
-
-  /**
-   * Get week number
-   */
-  getWeekNumber(dateString) {
-    const date = new Date(dateString);
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-  },
-};
-
-// Make DateUtils available globally
-window.DateUtils = DateUtils;
+    // Check if JSONBin is configured
+    if (!this.jsonbinConfig.apiKey || !this.jsonbinConfig.binId) {
+      this.showSetupScreen();
+    } else {
+      // Load data from JSONBin and show app
+      try {
+        await this.loadDataFromCloud();
+        this.showAppScreen();
+        this.updateDashboard();
+      } catch (error) {
+        console.error('Failed to load data from cloud:', error);
+        this.
