@@ -4,6 +4,19 @@
 
 A simple, powerful fitness tracking web app that individuals can fork/download and use as their own personal tracker. The core concept is streak-based motivation where users set their own daily milestones and track consecutive days of meeting their goals.
 
+## 🤖 **Built with AI-Assisted Development**
+
+This project was created using modern AI-powered development tools, demonstrating the power of human-AI collaboration in software development:
+
+- ⚡ **Vide Coding Sessions**: Built live using AI pair programming
+- 🧠 **Claude (Anthropic)**: Primary AI assistant for architecture, code generation, and documentation
+- 👨‍💻 **GitHub Copilot**: Code completion and intelligent suggestions
+- 🏗️ **Human Expertise**: AECO/BIM industry knowledge and project direction by [TheBIMsider](https://github.com/TheBIMsider)
+
+**Why this matters:** This showcases how AI tools can help domain experts (like AECO professionals) create sophisticated web applications without traditional programming backgrounds, while maintaining high code quality and best practices.
+
+---
+
 ## 🌟 **Choose Your Backend**
 
 BribeYourselfFit offers multiple storage options to fit your needs:
