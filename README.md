@@ -158,8 +158,8 @@ git checkout firebase-version
 ### **Local Development**
 ```bash
 # Clone repository
-git clone https://github.com/theBIMsider/BribeYourselfFit.git
-cd BribeYourselfFit
+git clone https://github.com/theBIMsider/BYF.git
+cd BYF
 
 # Choose your branch
 git checkout main                    # localStorage version
@@ -180,10 +180,7 @@ BYF/
 ├── manifest.json       # PWA manifest
 ├── sw.js              # Service Worker for PWA
 ├── README.md          # This file
-└── docs/              # Documentation (coming soon)
-    ├── setup/         # Backend setup guides
-    ├── customization/ # Customization guide
-    └── api/           # API integration examples
+
 ```
 
 ### **Contributing**
@@ -280,9 +277,7 @@ BYF/
 - 🔌 [API Integration](./docs/api/) *(coming soon)*
 
 ### **Community**
-- 🐛 **Bug Reports**: [Create GitHub Issue](https://github.com/TheBIMsider/BribeYourselfFit/issues)
-- 💡 **Feature Requests**: [Discussions](https://github.com/TheBIMsider/BribeYourselfFit/discussions)
-- 💬 **Questions**: Check issues or start a discussion
+- 🐛 **Bug Reports**: [Create GitHub Issue](https://github.com/TheBIMsider/BYF/issues)
 
 ### **Getting Help**
 1. Check the README for your specific branch
