@@ -26,7 +26,7 @@ This demonstrates how AI tools enable domain experts to build sophisticated clou
    - ✅ **Create** (to create your data storage)
    - ✅ **Read** (to load your data)
    - ✅ **Update** (to save changes)
-   - ❌ **Delete** (not needed for normal use)
+   - ✅ **Delete** (for data reset functionality)
 4. Copy your API key (starts with `$2a$10$...`)
 
 ### 2. Deploy Your App
@@ -42,17 +42,21 @@ This demonstrates how AI tools enable domain experts to build sophisticated clou
 3. Enter your JSONBin API key during setup
 
 ### 3. Setup Your Profile
-1. Enter your JSONBin API key and storage name
-2. Set your weight goals and daily targets
-3. Start logging your fitness journey!
+1. Test your JSONBin API key (app validates format automatically)
+2. Set your weight goals and daily targets (with validation)
+3. Your data automatically syncs to the cloud
+4. Start logging your fitness journey!
 
 ## 📊 Features
 
 ### ✨ **Cloud Benefits**
-- 🔄 **Auto-sync** across all your devices
+- 🔄 **Auto-sync** across all your devices with retry logic
 - 💾 **Secure cloud storage** with JSONBin.io
 - 🌍 **Access anywhere** with internet connection
 - 📱 **Mobile-friendly** PWA that works like a native app
+- ⚡ **Offline-first** - works without internet, syncs when connected
+- 🔄 **Smart retry** with exponential backoff for reliable syncing
+- 📊 **Real-time sync status** indicators
 
 ### 🎯 **Core Features**
 - **Daily Logging**: Weight, steps, exercise, water intake
@@ -62,14 +66,37 @@ This demonstrates how AI tools enable domain experts to build sophisticated clou
 - **Gamification**: Achievements, milestones, and custom rewards
 - **Data Export**: Download your data as JSON backup
 
+## ⚙️ Settings & Configuration
+
+### Cloud Settings
+- **Force Sync**: Trigger immediate cloud sync
+- **Test Connection**: Verify API key and connectivity  
+- **Update API Key**: Change to different JSONBin account
+- **Auto Sync**: Toggle automatic background syncing
+- **Sync Notifications**: Control sync status messages
+
+### Data Management
+- **Export Cloud Data**: Download from JSONBin.io
+- **Export Local Backup**: Download browser storage backup
+- **View App Statistics**: See usage stats and data size
+- **Reset Options**: Clear local, cloud, or all data
+
+### Sync Status Indicators
+- 🟢 **Connected/Synced**: All data current
+- 🟡 **Syncing**: Upload/download in progress  
+- 🔴 **Error**: Connection or sync issue
+- ⚠️ **Offline**: Working locally, will sync when connected
+
 ## 🔒 Security & Privacy
 
 ### Your Data is Safe
 - ✅ **API keys stored locally** in your browser only
+- ✅ **API key validation** with format checking and error messages
 - ✅ **No personal data shared** with BribeYourselfFit
 - ✅ **You own your data** - stored in your JSONBin account
 - ✅ **HTTPS encryption** for all data transmission
 - ✅ **No tracking or analytics** - completely private
+- ✅ **Progressive error recovery** with graceful fallbacks
 
 ### JSONBin.io Free Tier
 - 📦 **10,000 API requests/month** (plenty for personal use)
@@ -88,15 +115,13 @@ This demonstrates how AI tools enable domain experts to build sophisticated clou
 Your fitness data is stored as a single JSON object in JSONBin.io:
 ```json
 {
-  "meta": {
-    "version": "1.0",
-    "name": "Your Storage Name"
-  },
   "user": { "weight goals, daily targets..." },
   "dailyLogs": { "date-based fitness entries..." },
   "streaks": { "consecutive day counters..." },
   "customRewards": [ "your milestone rewards..." ],
-  "achievements": [ "unlocked achievements..." ]
+  "achievements": [ "unlocked achievements..." ],
+  "lastSync": "2025-07-26T...",
+  "version": "1.0.0-cloud"
 }
 ```
 
@@ -120,25 +145,54 @@ JSONBIN_API_KEY=your_api_key_here
 - Customize wellness checklist items (requires code changes)
 - Adjust validation ranges in `script.js`
 
+## 👨‍💻 Development Commands
+
+For developers and advanced users, these console commands are available:
+
+```javascript
+// Export data backup
+exportData()
+
+// Export cloud data  
+exportCloudData()
+
+// Force immediate sync
+forceSync()
+
+// Test cloud connection
+testConnection()
+
+// View app statistics
+getStats()
+
+// Reset all data (careful!)
+resetData()```
+
 ## 🚨 Troubleshooting
 
 ### Common Issues
 
+**"API key format appears incorrect"**
+- ✅ Ensure API key starts with `$2a$` or `$2b$`
+- ✅ Copy the complete key without extra spaces
+- ✅ Check for special characters or line breaks
+
 **"Failed to connect to JSONBin.io"**
-- ✅ Check your API key is correct
-- ✅ Ensure API key has Create, Read, Update permissions
+- ✅ Check your API key permissions (Create, Read, Update, Delete)
 - ✅ Verify internet connection
-- ✅ Try refreshing the page
+- ✅ Try the "Test Connection" button in settings
 
-**"Sync failed" errors**
-- ✅ Check internet connection
-- ✅ Verify you haven't exceeded JSONBin.io free tier limits
-- ✅ Try exporting data as backup before troubleshooting
+**"Sync failed after multiple attempts"**
+- ✅ App automatically falls back to local storage
+- ✅ Check JSONBin.io service status
+- ✅ Your data is safe - will sync when connection restores
+- ✅ Use "Force Sync" button in settings when connection returns
 
-**Data not loading**
-- ✅ Clear browser cache and cookies
-- ✅ Check if you're using the correct API key
-- ✅ Verify your JSONBin.io account is active
+**Data not syncing**
+- ✅ Check sync status indicator in header
+- ✅ Verify auto-sync is enabled in settings
+- ✅ Look for pending sync count in settings
+- ✅ Use "Force Sync" to trigger immediate sync
 
 ### Reset & Recovery
 - Use **Settings > Change API Key** to switch accounts
@@ -188,8 +242,8 @@ JSONBIN_API_KEY=your_api_key_here
 ## 🔮 Roadmap
 
 ### Planned Features
-- 📊 **Advanced charts** with full Canvas implementation
-- 📱 **Offline mode** with sync when online
+- ✅ **Advanced charts** with full Canvas implementation *(completed)*
+- ✅ **Offline mode** with sync when online *(completed)*
 - 🔔 **Push notifications** for daily logging reminders
 - 📈 **Analytics dashboard** with detailed insights
 - 🤝 **Family sharing** options
@@ -204,7 +258,7 @@ JSONBIN_API_KEY=your_api_key_here
 
 BSD-3-Clause License - see [LICENSE](LICENSE) file for details.
 
-**TL;DR**: You can use, modify, and distribute this freely. Just keep the license notice and don't use our name to promote your changes.
+**TL;DR**: You can use, modify, and distribute this freely. Just keep the license notice.
 
 ## 🙏 Acknowledgments
 
