@@ -113,7 +113,7 @@ git checkout jsonbin-version
 ```bash
 git checkout airtable-version
 ```
-1. Create Airtable base with provided template
+1. Create [Airtable](https://www.airtable.com/) base with provided template
 2. Get API key and base ID
 3. Enjoy structured data with rich features
 
