@@ -125,7 +125,7 @@ git checkout jsonbin-version
 ### **📊 Airtable Database**
 ⚠️ Coming Soon - Structured database with rich features
 ```bash
-# Coming in Phase 4
+# Coming in Phase 4b
 git checkout airtable-version
 ```
 1. Create [Airtable](https://www.airtable.com/) base with provided template
@@ -135,7 +135,7 @@ git checkout airtable-version
 ### **🔥 Firebase Real-time**
 ⚠️ Coming Soon - Enterprise scaling with real-time sync
 ```bash
-# Coming in Phase 4
+# Coming in Phase 4c
 git checkout firebase-version
 ```
 1. Create [Firebase](https://firebase.google.com/) project
