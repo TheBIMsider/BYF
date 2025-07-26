@@ -145,8 +145,8 @@ git checkout firebase-version
 ### **Local Development**
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/BribeYourselfFit.git
-cd BribeYourselfFit
+git clone https://github.com/yourusername/BYF.git
+cd BYF
 
 # Choose your branch
 git checkout main                    # localStorage version
@@ -160,7 +160,7 @@ open index.html
 
 ### **Project Structure**
 ```
-BribeYourselfFit/
+BYF/
 ├── index.html          # Main app structure
 ├── styles.css          # Complete styling with themes
 ├── script.js           # Core application logic
@@ -275,8 +275,8 @@ BribeYourselfFit/
 - 🔌 [API Integration](./docs/api/) *(coming soon)*
 
 ### **Community**
-- 🐛 **Bug Reports**: [Create GitHub Issue](https://github.com/yourusername/BribeYourselfFit/issues)
-- 💡 **Feature Requests**: [Discussions](https://github.com/yourusername/BribeYourselfFit/discussions)
+- 🐛 **Bug Reports**: [Create GitHub Issue](https://github.com/yourusername/BYF/issues)
+- 💡 **Feature Requests**: [Discussions](https://github.com/yourusername/BYF/discussions)
 - 💬 **Questions**: Check issues or start a discussion
 
 ### **Getting Help**
@@ -290,9 +290,9 @@ BribeYourselfFit/
 
 ## 📄 **License**
 
-MIT License - see [LICENSE](LICENSE) file for details.
+BSD-3-Clause License - see [LICENSE](LICENSE) file for details.
 
-**TL;DR**: You can use, modify, and distribute this freely. Just keep the license notice.
+**TL;DR**: You can use, modify, and distribute this freely. Just keep the license notice and don't use our name to promote your changes.
 
 ## 🙏 **Acknowledgments**
 
@@ -317,7 +317,7 @@ If BribeYourselfFit helps you on your fitness journey, please star this reposito
 
 **Questions?** **Problems?** **Success stories?** 
 
-We'd love to hear from you! [Create an issue](https://github.com/yourusername/BribeYourselfFit/issues) or [start a discussion](https://github.com/yourusername/BribeYourselfFit/discussions).
+We'd love to hear from you! [Create an issue](https://github.com/yourusername/BYF/issues) or [start a discussion](https://github.com/yourusername/BYF/discussions).
 
 ---
 
