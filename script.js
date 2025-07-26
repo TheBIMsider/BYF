@@ -295,6 +295,8 @@ class BribeYourselfFit {
   async handleDailyLog(e) {
     e.preventDefault();
 
+    this.debugFormSave(); // Add this line for debugging
+
     const today = this.currentDate;
 
     // Get form values - CORRECTED VERSION (same fix as before)
