@@ -187,9 +187,11 @@ JSONBIN_API_KEY=your_api_key_here
 - 🟡 **Airtable** (structured data with beautiful interface)
 - 🔵 **Firebase** (enterprise scaling with real-time sync)
 
-## 📄 License
+## 📄 **License**
 
-MIT License - Feel free to fork, modify, and customize for your needs!
+BSD-3-Clause License - see [LICENSE](LICENSE) file for details.
+
+**TL;DR**: You can use, modify, and distribute this freely. Just keep the license notice and don't use our name to promote your changes.
 
 ## 🙏 Acknowledgments
 
