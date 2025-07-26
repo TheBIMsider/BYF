@@ -21,12 +21,12 @@ This project was created using modern AI-powered development tools, demonstratin
 
 BribeYourselfFit offers multiple storage options to fit your needs:
 
-| Version | Storage | Setup | Best For | Branch |
-|---------|---------|-------|----------|--------|
-| 🏠 **localStorage** | Browser only | None | Simple setup, offline use | `main` |
-| 🌐 **JSONBin.io** | Cloud API | API key | Cross-device sync, simple cloud | `jsonbin-version` |
-| 📊 **Airtable** | Structured DB | API setup | Rich data features, sharing | `airtable-version` |
-| 🔥 **Firebase** | Real-time DB | Project setup | Enterprise scale, real-time | `firebase-version` |
+| Version | Storage | Setup | Best For | Branch | Status |
+|---------|---------|-------|----------|--------|--------|
+| 🏠 **localStorage** | Browser only | None | Simple setup, offline use | `main` | ✅ Ready |
+| 🌐 **JSONBin.io** | Cloud API | API key | Cross-device sync, simple cloud | `jsonbin-version` | ✅ Ready |
+| 📊 **Airtable** | Structured DB | API setup | Rich data features, sharing | `airtable-version` | 🚧 Coming Soon |
+| 🔥 **Firebase** | Real-time DB | Project setup | Enterprise scale, real-time | `firebase-version` | 🚧 Coming Soon |
 
 ## 🚀 **Quick Start**
 
@@ -124,16 +124,20 @@ git checkout jsonbin-version
 
 ### **📊 Airtable Database**
 ```bash
+# Coming in Phase 4
 git checkout airtable-version
 ```
+⚠️ Coming Soon - Structured database with rich features
 1. Create [Airtable](https://www.airtable.com/) base with provided template
 2. Get API key and base ID
 3. Enjoy structured data with rich features
 
 ### **🔥 Firebase Real-time**
 ```bash
+# Coming in Phase 4
 git checkout firebase-version
 ```
+⚠️ Coming Soon - Enterprise scaling with real-time sync
 1. Create [Firebase](https://firebase.google.com/) project
 2. Enable Realtime Database
 3. Configure authentication rules
@@ -158,7 +162,7 @@ git checkout firebase-version
 ### **Local Development**
 ```bash
 # Clone repository
-git clone https://github.com/theBIMsider/BYF.git
+git clone https://github.com/TheBIMsider/BYF.git
 cd BYF
 
 # Choose your branch
