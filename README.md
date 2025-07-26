@@ -123,21 +123,21 @@ git checkout jsonbin-version
 3. Data syncs across devices automatically
 
 ### **📊 Airtable Database**
+⚠️ Coming Soon - Structured database with rich features
 ```bash
 # Coming in Phase 4
 git checkout airtable-version
 ```
-⚠️ Coming Soon - Structured database with rich features
 1. Create [Airtable](https://www.airtable.com/) base with provided template
 2. Get API key and base ID
 3. Enjoy structured data with rich features
 
 ### **🔥 Firebase Real-time**
+⚠️ Coming Soon - Enterprise scaling with real-time sync
 ```bash
 # Coming in Phase 4
 git checkout firebase-version
 ```
-⚠️ Coming Soon - Enterprise scaling with real-time sync
 1. Create [Firebase](https://firebase.google.com/) project
 2. Enable Realtime Database
 3. Configure authentication rules
