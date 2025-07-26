@@ -2547,6 +2547,21 @@ BribeYourselfFit.prototype.showInstallPrompt = function() {
   }
 };
 
+// Debug function to check form state before saving
+BribeYourselfFit.prototype.debugFormSave = function() {
+  console.log('=== FORM SAVE DEBUG ===');
+  console.log('Current date:', this.currentDate);
+  console.log('Form elements:', {
+    weight: document.getElementById('todayWeight')?.value,
+    steps: document.getElementById('todaySteps')?.value,
+    exercise: document.getElementById('todayExerciseMinutes')?.value,
+    water: document.getElementById('todayWater')?.value
+  });
+  console.log('Current user:', this.currentUser);
+  console.log('Daily logs before save:', Object.keys(this.dailyLogs).length);
+  console.log('=====================');
+};
+
 /**
  * Utility functions for date manipulation and formatting
  */
