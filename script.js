@@ -25,6 +25,8 @@ class BribeYourselfFit {
     this.customRewards = [];
     this.achievements = [];
     this.defaultMilestones = [];
+    this.defaultMilestones = [];
+    this.settings = {};
     this.currentTab = 'dashboard';
     this.chartPeriod = 7;
     this.currentDate = new Date().toISOString().split('T')[0];
@@ -135,6 +137,352 @@ class BribeYourselfFit {
       prevMonth.addEventListener('click', () => this.navigateCalendar(-1));
     if (nextMonth)
       nextMonth.addEventListener('click', () => this.navigateCalendar(1));
+
+    // Settings event listeners
+    this.setupSettingsEventListeners();
+  }
+
+  /**
+   * Setup settings-specific event listeners
+   */
+  setupSettingsEventListeners() {
+    // Theme preference radio buttons
+    const themeRadios = document.querySelectorAll(
+      'input[name="themePreference"]'
+    );
+    themeRadios.forEach((radio) => {
+      radio.addEventListener(
+        'change',
+        this.handleThemePreferenceChange.bind(this)
+      );
+    });
+
+    // Unit and format selectors
+    const weightUnit = document.getElementById('weightUnit');
+    const dateFormat = document.getElementById('dateFormat');
+    const weekStart = document.getElementById('weekStart');
+
+    if (weightUnit) {
+      weightUnit.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (dateFormat) {
+      dateFormat.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (weekStart) {
+      weekStart.addEventListener('change', this.handleSettingChange.bind(this));
+    }
+
+    // Goal update buttons
+    const updateGoalsBtn = document.getElementById('updateGoalsBtn');
+    const updateWeightGoalsBtn = document.getElementById(
+      'updateWeightGoalsBtn'
+    );
+
+    if (updateGoalsBtn) {
+      updateGoalsBtn.addEventListener(
+        'click',
+        this.handleUpdateDailyGoals.bind(this)
+      );
+    }
+    if (updateWeightGoalsBtn) {
+      updateWeightGoalsBtn.addEventListener(
+        'click',
+        this.handleUpdateWeightGoals.bind(this)
+      );
+    }
+
+    // Goal threshold checkboxes
+    const allowPartialSteps = document.getElementById('allowPartialSteps');
+    const allowPartialExercise = document.getElementById(
+      'allowPartialExercise'
+    );
+    const strictWellness = document.getElementById('strictWellness');
+
+    if (allowPartialSteps) {
+      allowPartialSteps.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (allowPartialExercise) {
+      allowPartialExercise.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (strictWellness) {
+      strictWellness.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+
+    // View stats button
+    const viewStatsBtn = document.getElementById('viewStatsBtn');
+    if (viewStatsBtn) {
+      viewStatsBtn.addEventListener('click', this.viewDetailedStats.bind(this));
+    }
+
+    // Data management buttons
+    const exportDataBtn = document.getElementById('exportDataBtn');
+    const exportLogsBtn = document.getElementById('exportLogsBtn');
+    const importDataBtn = document.getElementById('importDataBtn');
+
+    if (exportDataBtn) {
+      exportDataBtn.addEventListener('click', this.exportAllData.bind(this));
+    }
+    if (exportLogsBtn) {
+      exportLogsBtn.addEventListener('click', this.exportDailyLogs.bind(this));
+    }
+    if (importDataBtn) {
+      importDataBtn.addEventListener('click', this.handleImportData.bind(this));
+    }
+
+    // Streak management buttons
+    const resetStreaksBtn = document.getElementById('resetStreaksBtn');
+    const clearTodayBtn = document.getElementById('clearTodayBtn');
+    const resetProfileBtn = document.getElementById('resetProfileBtn');
+    const resetLogsBtn = document.getElementById('resetLogsBtn');
+    const resetAllDataBtn = document.getElementById('resetAllDataBtn');
+
+    if (resetStreaksBtn) {
+      resetStreaksBtn.addEventListener('click', this.resetStreaks.bind(this));
+    }
+    if (clearTodayBtn) {
+      clearTodayBtn.addEventListener('click', this.clearTodaysLog.bind(this));
+    }
+    if (resetProfileBtn) {
+      resetProfileBtn.addEventListener('click', this.resetProfile.bind(this));
+    }
+    if (resetLogsBtn) {
+      resetLogsBtn.addEventListener('click', this.resetLogs.bind(this));
+    }
+    if (resetAllDataBtn) {
+      resetAllDataBtn.addEventListener('click', this.resetAllData.bind(this));
+    }
+
+    // Import file handler
+    const importFile = document.getElementById('importFile');
+    if (importFile) {
+      importFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          this.importData(file);
+        }
+      });
+    }
+  }
+
+  /**
+   * Handle theme preference changes
+   */
+  handleThemePreferenceChange(e) {
+    const value = e.target.value;
+    this.settings.themePreference = value;
+    this.saveSettings();
+
+    if (value === 'system') {
+      // Follow system preference
+      const systemPrefersDark = window.matchMedia(
+        '(prefers-color-scheme: dark)'
+      ).matches;
+      const theme = systemPrefersDark ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('byf_theme', theme);
+    } else {
+      // Use selected theme
+      document.documentElement.setAttribute('data-theme', value);
+      localStorage.setItem('byf_theme', value);
+    }
+
+    this.updateThemeToggle(document.documentElement.getAttribute('data-theme'));
+  }
+
+  /**
+   * Handle general setting changes
+   */
+  handleSettingChange(e) {
+    const setting = e.target.id;
+    const value =
+      e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+
+    this.settings[setting] = value;
+    this.saveSettings();
+
+    // Apply certain settings immediately
+    if (setting === 'weekStart') {
+      // Re-render calendar if it's currently visible
+      if (this.currentTab === 'charts') {
+        this.renderStreakCalendar();
+      }
+    }
+  }
+
+  /**
+   * Setup system theme preference listener
+   */
+  setupSystemThemeListener() {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleThemeChange = (e) => {
+      if (this.settings.themePreference === 'system') {
+        const theme = e.matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('byf_theme', theme);
+        this.updateThemeToggle(theme);
+      }
+    };
+
+    mediaQuery.addListener(handleThemeChange);
+
+    // Set initial theme
+    handleThemeChange(mediaQuery);
+  }
+
+  /**
+   * View detailed statistics
+   */
+  viewDetailedStats() {
+    const stats = this.getAppStats();
+
+    const statsText = Object.entries(stats)
+      .map(
+        ([key, value]) =>
+          `${key}: ${
+            typeof value === 'object' ? JSON.stringify(value, null, 2) : value
+          }`
+      )
+      .join('\n');
+
+    alert(`BribeYourselfFit Detailed Statistics:\n\n${statsText}`);
+    console.table(stats);
+  }
+
+  /**
+   * Handle daily goals update
+   */
+  handleUpdateDailyGoals() {
+    const stepsInput = document.getElementById('settingsSteps');
+    const exerciseInput = document.getElementById('settingsExercise');
+    const waterInput = document.getElementById('settingsWater');
+
+    const steps = parseInt(stepsInput.value);
+    const exercise = parseInt(exerciseInput.value);
+    const water = parseFloat(waterInput.value);
+
+    // Validate inputs
+    if (isNaN(steps) || steps < 1000 || steps > 50000) {
+      this.showError('Steps goal must be between 1,000 and 50,000');
+      return;
+    }
+    if (isNaN(exercise) || exercise < 5 || exercise > 300) {
+      this.showError('Exercise goal must be between 5 and 300 minutes');
+      return;
+    }
+    if (isNaN(water) || water < 0.5 || water > 10) {
+      this.showError('Water goal must be between 0.5 and 10 liters');
+      return;
+    }
+
+    // Update goals
+    this.currentUser.dailySteps = steps;
+    this.currentUser.dailyExercise = exercise;
+    this.currentUser.dailyWater = water;
+
+    this.saveData();
+    this.updateDashboard();
+    this.showSuccess('Daily goals updated successfully!');
+  }
+
+  /**
+   * Handle weight goals update
+   */
+  handleUpdateWeightGoals() {
+    const goalWeightInput = document.getElementById('settingsGoalWeight');
+    const goalWeight = parseFloat(goalWeightInput.value);
+
+    // Validate input
+    if (isNaN(goalWeight) || goalWeight < 50 || goalWeight > 1000) {
+      this.showError('Goal weight must be between 50 and 1000 lbs');
+      return;
+    }
+
+    if (Math.abs(goalWeight - this.currentUser.startingWeight) < 1) {
+      this.showError(
+        'Goal weight should be at least 1 lb different from starting weight'
+      );
+      return;
+    }
+
+    // Update goal weight
+    this.currentUser.goalWeight = goalWeight;
+
+    // Regenerate weight milestones
+    this.initializeDefaultMilestones();
+
+    this.saveData();
+    this.updateDashboard();
+    this.showSuccess('Weight goal updated successfully!');
+  }
+
+  /**
+   * Export all data
+   */
+  exportAllData() {
+    const exportData = {
+      user: this.currentUser,
+      dailyLogs: this.dailyLogs,
+      streaks: this.streaks,
+      customRewards: this.customRewards,
+      achievements: this.achievements,
+      settings: this.settings,
+      exportDate: new Date().toISOString(),
+      exportType: 'complete',
+      version: '1.0.0-localStorage',
+    };
+
+    this.downloadData(exportData, 'complete_backup');
+    this.showSuccess('Complete data exported successfully!');
+  }
+
+  /**
+   * Export daily logs only
+   */
+  exportDailyLogs() {
+    const exportData = {
+      dailyLogs: this.dailyLogs,
+      exportDate: new Date().toISOString(),
+      exportType: 'logs_only',
+      version: '1.0.0-localStorage',
+    };
+
+    this.downloadData(exportData, 'daily_logs');
+    this.showSuccess('Daily logs exported successfully!');
+  }
+
+  /**
+   * Download data as JSON file
+   */
+  downloadData(data, type) {
+    const dataStr = JSON.stringify(data, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `BribeYourselfFit_${type}_${
+      new Date().toISOString().split('T')[0]
+    }.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   /**
@@ -152,10 +500,18 @@ class BribeYourselfFit {
       this.achievements =
         JSON.parse(localStorage.getItem('byf_achievements')) || [];
 
+      this.settings =
+        JSON.parse(localStorage.getItem('byf_settings')) ||
+        this.getDefaultSettings();
+
       // Load theme preference
       const savedTheme = localStorage.getItem('byf_theme') || 'light';
       document.documentElement.setAttribute('data-theme', savedTheme);
       this.updateThemeToggle(savedTheme);
+
+      if (this.settings.themePreference === 'system') {
+        this.setupSystemThemeListener();
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       this.showError('Failed to load saved data. Starting fresh.');
@@ -185,6 +541,138 @@ class BribeYourselfFit {
   }
 
   /**
+   * Get default settings
+   */
+  getDefaultSettings() {
+    return {
+      themePreference: 'system',
+      weightUnit: 'lbs',
+      dateFormat: 'US',
+      weekStart: 'sunday',
+      allowPartialSteps: false,
+      allowPartialExercise: false,
+      strictWellness: false,
+    };
+  }
+
+  /**
+   * Save settings to localStorage
+   */
+  saveSettings() {
+    try {
+      localStorage.setItem('byf_settings', JSON.stringify(this.settings));
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
+  }
+
+  /**
+   * Load settings tab content
+   */
+  loadSettingsTab() {
+    this.updateSettingsDisplay();
+  }
+
+  /**
+   * Update settings display with current values
+   */
+  updateSettingsDisplay() {
+    // Update theme preference radio buttons
+    const themePreference = this.settings.themePreference || 'system';
+    const themeRadio = document.querySelector(
+      `input[value="${themePreference}"]`
+    );
+    if (themeRadio) {
+      themeRadio.checked = true;
+    }
+
+    // Update unit and format selectors
+    const weightUnit = document.getElementById('weightUnit');
+    const dateFormat = document.getElementById('dateFormat');
+    const weekStart = document.getElementById('weekStart');
+
+    if (weightUnit && this.settings.weightUnit) {
+      weightUnit.value = this.settings.weightUnit;
+    }
+    if (dateFormat && this.settings.dateFormat) {
+      dateFormat.value = this.settings.dateFormat;
+    }
+    if (weekStart && this.settings.weekStart) {
+      weekStart.value = this.settings.weekStart;
+    }
+
+    // Update daily goals inputs
+    if (this.currentUser) {
+      const settingsSteps = document.getElementById('settingsSteps');
+      const settingsExercise = document.getElementById('settingsExercise');
+      const settingsWater = document.getElementById('settingsWater');
+      const settingsStartingWeight = document.getElementById(
+        'settingsStartingWeight'
+      );
+      const settingsGoalWeight = document.getElementById('settingsGoalWeight');
+
+      if (settingsSteps) settingsSteps.value = this.currentUser.dailySteps;
+      if (settingsExercise)
+        settingsExercise.value = this.currentUser.dailyExercise;
+      if (settingsWater) settingsWater.value = this.currentUser.dailyWater;
+      if (settingsStartingWeight)
+        settingsStartingWeight.value = this.currentUser.startingWeight;
+      if (settingsGoalWeight)
+        settingsGoalWeight.value = this.currentUser.goalWeight;
+    }
+
+    // Update goal threshold checkboxes
+    const allowPartialSteps = document.getElementById('allowPartialSteps');
+    const allowPartialExercise = document.getElementById(
+      'allowPartialExercise'
+    );
+    const strictWellness = document.getElementById('strictWellness');
+
+    if (allowPartialSteps)
+      allowPartialSteps.checked = this.settings.allowPartialSteps || false;
+    if (allowPartialExercise)
+      allowPartialExercise.checked =
+        this.settings.allowPartialExercise || false;
+    if (strictWellness)
+      strictWellness.checked = this.settings.strictWellness || false;
+
+    // Update app info
+    this.updateAppInfo();
+  }
+
+  /**
+   * Update app information display
+   */
+  updateAppInfo() {
+    const totalEntriesEl = document.getElementById('totalDataEntries');
+    const storageUsedEl = document.getElementById('storageUsed');
+    const profileCreatedEl = document.getElementById('profileCreated');
+
+    if (totalEntriesEl) {
+      totalEntriesEl.textContent = Object.keys(
+        this.dailyLogs
+      ).length.toString();
+    }
+
+    if (storageUsedEl) {
+      const dataSize = JSON.stringify({
+        user: this.currentUser,
+        dailyLogs: this.dailyLogs,
+        streaks: this.streaks,
+        customRewards: this.customRewards,
+        achievements: this.achievements,
+        settings: this.settings,
+      }).length;
+      storageUsedEl.textContent = `~${Math.round(dataSize / 1024)} KB`;
+    }
+
+    if (profileCreatedEl && this.currentUser && this.currentUser.setupDate) {
+      const setupDate = new Date(this.currentUser.setupDate);
+      profileCreatedEl.textContent = setupDate.toLocaleDateString();
+    }
+  }
+
+  /**
    * Initialize streak counters
    */
   initializeStreaks() {
@@ -206,41 +694,56 @@ class BribeYourselfFit {
   handleSetup(e) {
     e.preventDefault();
 
-const formData = new FormData(e.target);
+    const formData = new FormData(e.target);
 
-// Get raw values from form
-const rawValues = {
-  startingWeight: formData.get('startingWeight'),
-  goalWeight: formData.get('goalWeight'),
-  dailySteps: formData.get('dailySteps'),
-  dailyExercise: formData.get('dailyExercise'),
-  dailyWater: formData.get('dailyWater')
-};
+    // Get raw values from form
+    const rawValues = {
+      startingWeight: formData.get('startingWeight'),
+      goalWeight: formData.get('goalWeight'),
+      dailySteps: formData.get('dailySteps'),
+      dailyExercise: formData.get('dailyExercise'),
+      dailyWater: formData.get('dailyWater'),
+    };
 
-// Debug: Log raw form values
-console.log('Raw form values:', rawValues);
+    // Debug: Log raw form values
+    console.log('Raw form values:', rawValues);
 
-// Parse with proper validation
-const startingWeight = parseFloat(rawValues.startingWeight);
-const goalWeight = parseFloat(rawValues.goalWeight);
-const dailySteps = parseInt(rawValues.dailySteps);
-const dailyExercise = parseInt(rawValues.dailyExercise);
-const dailyWater = parseFloat(rawValues.dailyWater);
+    // Parse with proper validation
+    const startingWeight = parseFloat(rawValues.startingWeight);
+    const goalWeight = parseFloat(rawValues.goalWeight);
+    const dailySteps = parseInt(rawValues.dailySteps);
+    const dailyExercise = parseInt(rawValues.dailyExercise);
+    const dailyWater = parseFloat(rawValues.dailyWater);
 
-// Debug: Log parsed values
-console.log('Parsed values:', {
-  startingWeight, goalWeight, dailySteps, dailyExercise, dailyWater
-});
+    // Debug: Log parsed values
+    console.log('Parsed values:', {
+      startingWeight,
+      goalWeight,
+      dailySteps,
+      dailyExercise,
+      dailyWater,
+    });
 
-// Check for NaN values
-if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) || 
-    isNaN(dailyExercise) || isNaN(dailyWater)) {
-  console.error('Form parsing failed - NaN values detected:', {
-    startingWeight, goalWeight, dailySteps, dailyExercise, dailyWater
-  });
-  this.showError('Invalid form data. Please check all fields have valid numbers.');
-  return;
-}
+    // Check for NaN values
+    if (
+      isNaN(startingWeight) ||
+      isNaN(goalWeight) ||
+      isNaN(dailySteps) ||
+      isNaN(dailyExercise) ||
+      isNaN(dailyWater)
+    ) {
+      console.error('Form parsing failed - NaN values detected:', {
+        startingWeight,
+        goalWeight,
+        dailySteps,
+        dailyExercise,
+        dailyWater,
+      });
+      this.showError(
+        'Invalid form data. Please check all fields have valid numbers.'
+      );
+      return;
+    }
 
     // Validate input
     if (
@@ -291,12 +794,17 @@ if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) ||
     dailyExercise,
     dailyWater
   ) {
-      // First check for NaN values
-  if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) || 
-      isNaN(dailyExercise) || isNaN(dailyWater)) {
-    this.showError('Please enter valid numbers in all fields');
-    return false;
-  }
+    // First check for NaN values
+    if (
+      isNaN(startingWeight) ||
+      isNaN(goalWeight) ||
+      isNaN(dailySteps) ||
+      isNaN(dailyExercise) ||
+      isNaN(dailyWater)
+    ) {
+      this.showError('Please enter valid numbers in all fields');
+      return false;
+    }
     if (startingWeight < 50 || startingWeight > 1000) {
       this.showError('Starting weight must be between 50-1000 lbs');
       return false;
@@ -855,6 +1363,9 @@ if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) ||
       } else if (tabName === 'rewards') {
         console.log('Loading rewards tab...');
         this.loadRewardsTab();
+      } else if (tabName === 'settings') {
+        console.log('Loading settings tab...');
+        this.loadSettingsTab();
       }
     } catch (error) {
       console.error(`Error loading ${tabName} tab:`, error);
@@ -2030,6 +2541,16 @@ if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) ||
     localStorage.setItem('byf_theme', newTheme);
 
     this.updateThemeToggle(newTheme);
+
+    // Update settings if user manually toggles (override system preference)
+    this.settings.themePreference = newTheme;
+    this.saveSettings();
+
+    // Update radio button in settings
+    const themeRadio = document.querySelector(`input[value="${newTheme}"]`);
+    if (themeRadio) {
+      themeRadio.checked = true;
+    }
   }
 
   /**
@@ -2216,7 +2737,7 @@ if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) ||
   }
 
   /**
-   * Reset all data (for development/testing)
+   * Reset all data (updated version)
    */
   resetAllData() {
     if (
@@ -2231,12 +2752,17 @@ if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) ||
       return;
     }
 
-    // Clear localStorage
-    localStorage.removeItem('byf_user');
-    localStorage.removeItem('byf_dailyLogs');
-    localStorage.removeItem('byf_streaks');
-    localStorage.removeItem('byf_customRewards');
-    localStorage.removeItem('byf_achievements');
+    // Clear localStorage - add settings to the list
+    const keysToRemove = [
+      'byf_user',
+      'byf_dailyLogs',
+      'byf_streaks',
+      'byf_customRewards',
+      'byf_achievements',
+      'byf_settings', // Add this line
+      'byf_theme', // Add this line
+    ];
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
 
     // Reset app state
     this.currentUser = null;
@@ -2244,6 +2770,7 @@ if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) ||
     this.streaks = {};
     this.customRewards = [];
     this.achievements = [];
+    this.settings = this.getDefaultSettings(); // Add this line
 
     this.showSuccess('All data has been reset. Redirecting to setup...');
 
@@ -2311,6 +2838,77 @@ if (isNaN(startingWeight) || isNaN(goalWeight) || isNaN(dailySteps) ||
 
     console.table(stats);
     return stats;
+  }
+
+  // Add these to your BribeYourselfFit class:
+
+  /**
+   * Handle import data button click
+   */
+  handleImportData() {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+
+    if (!file) {
+      this.showError('Please select a backup file first');
+      return;
+    }
+
+    this.importData(file);
+  }
+
+  /**
+   * Reset functions for danger zone
+   */
+  resetStreaks() {
+    if (!confirm('This will reset all your streaks to 0. Continue?')) return;
+
+    this.streaks = this.initializeStreaks();
+    this.saveData();
+    this.updateDashboard();
+    this.showSuccess('All streaks have been reset');
+  }
+
+  clearTodaysLog() {
+    if (!confirm("This will clear today's fitness log. Continue?")) return;
+
+    delete this.dailyLogs[this.currentDate];
+    this.saveData();
+    this.updateDashboard();
+    this.showSuccess("Today's log has been cleared");
+  }
+
+  resetProfile() {
+    if (!confirm('This will reset your profile but keep your logs. Continue?'))
+      return;
+
+    // Save current logs and achievements
+    const savedLogs = { ...this.dailyLogs };
+    const savedAchievements = [...this.achievements];
+
+    // Reset to setup screen
+    this.currentUser = null;
+    this.saveData();
+    this.showSetupScreen();
+
+    this.showSuccess('Profile reset. Please set up your goals again.');
+  }
+
+  resetLogs() {
+    if (
+      !confirm(
+        'This will delete ALL daily logs but keep your profile. Continue?'
+      )
+    )
+      return;
+    if (!confirm('Are you sure? This cannot be undone!')) return;
+
+    this.dailyLogs = {};
+    this.streaks = this.initializeStreaks();
+    this.achievements = [];
+    this.saveData();
+    this.updateDashboard();
+    this.showSuccess('All daily logs have been cleared');
   }
 
   /**
@@ -2390,7 +2988,6 @@ document.addEventListener('DOMContentLoaded', () => {
  * Handle keyboard shortcuts for accessibility
  */
 document.addEventListener('keydown', (e) => {
-  // Tab navigation shortcuts
   if (e.altKey) {
     switch (e.key) {
       case '1':
@@ -2404,6 +3001,10 @@ document.addEventListener('keydown', (e) => {
       case '3':
         e.preventDefault();
         if (window.app) window.app.switchTab('rewards');
+        break;
+      case '4':
+        e.preventDefault();
+        if (window.app) window.app.switchTab('settings');
         break;
       case 't':
         e.preventDefault();
@@ -2476,18 +3077,19 @@ window.addEventListener('unhandledrejection', (e) => {
 });
 
 // Fix for PWA install prompt errors
-BribeYourselfFit.prototype.showInstallPrompt = function() {
+BribeYourselfFit.prototype.showInstallPrompt = function () {
   if (this.deferredPrompt) {
     // Only show install button if user hasn't dismissed it
     const existingBtn = document.getElementById('pwa-install-btn');
     if (existingBtn) return; // Don't create multiple buttons
-    
+
     const installBtn = document.createElement('button');
     installBtn.id = 'pwa-install-btn';
     installBtn.textContent = '📱 Install App';
     installBtn.className = 'btn btn-primary';
-    installBtn.style.cssText = 'position: fixed; bottom: 20px; right: 20px; z-index: 1000; opacity: 0.9;';
-    
+    installBtn.style.cssText =
+      'position: fixed; bottom: 20px; right: 20px; z-index: 1000; opacity: 0.9;';
+
     installBtn.addEventListener('click', async () => {
       try {
         if (this.deferredPrompt) {
@@ -2502,27 +3104,27 @@ BribeYourselfFit.prototype.showInstallPrompt = function() {
         installBtn.remove();
       }
     });
-    
+
     // Auto-remove after 15 seconds
     setTimeout(() => {
       if (installBtn.parentNode) {
         installBtn.remove();
       }
     }, 15000);
-    
+
     document.body.appendChild(installBtn);
   }
 };
 
 // Debug function to check form state before saving
-BribeYourselfFit.prototype.debugFormSave = function() {
+BribeYourselfFit.prototype.debugFormSave = function () {
   console.log('=== FORM SAVE DEBUG ===');
   console.log('Current date:', this.currentDate);
   console.log('Form elements:', {
     weight: document.getElementById('todayWeight')?.value,
     steps: document.getElementById('todaySteps')?.value,
     exercise: document.getElementById('todayExerciseMinutes')?.value,
-    water: document.getElementById('todayWater')?.value
+    water: document.getElementById('todayWater')?.value,
   });
   console.log('Current user:', this.currentUser);
   console.log('Daily logs before save:', Object.keys(this.dailyLogs).length);

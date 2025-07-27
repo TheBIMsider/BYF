@@ -152,6 +152,7 @@
         <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
         <button class="tab-btn" data-tab="charts">Progress</button>
         <button class="tab-btn" data-tab="rewards">Rewards</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
       </div>
 
       <!-- Dashboard Tab -->
@@ -508,7 +509,12 @@
             <form id="rewardForm">
               <div class="form-group">
                 <label for="rewardType" class="form-label">Reward Type</label>
-                <select id="rewardType" name="rewardType" class="form-select" required>
+                <select
+                  id="rewardType"
+                  name="rewardType"
+                  class="form-select"
+                  required
+                >
                   <option value="">Select reward type</option>
                   <option value="streak">Streak Milestone</option>
                   <option value="weight">Weight Loss</option>
@@ -616,6 +622,397 @@
               <h2 class="card-title">Achievement History</h2>
             </div>
             <div class="achievements-list" id="achievementHistory"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div id="settingsTab" class="tab-content hidden">
+        <div class="settings-container">
+          <!-- App Preferences -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">⚙️ App Preferences</h2>
+            </div>
+
+            <div class="setting-group">
+              <h3>Theme & Display</h3>
+              <div class="setting-item">
+                <input
+                  type="radio"
+                  id="themeLight"
+                  name="themePreference"
+                  value="light"
+                  class="setting-radio"
+                />
+                <label for="themeLight" class="setting-label">Light Mode</label>
+              </div>
+              <div class="setting-item">
+                <input
+                  type="radio"
+                  id="themeDark"
+                  name="themePreference"
+                  value="dark"
+                  class="setting-radio"
+                />
+                <label for="themeDark" class="setting-label">Dark Mode</label>
+              </div>
+              <div class="setting-item">
+                <input
+                  type="radio"
+                  id="themeSystem"
+                  name="themePreference"
+                  value="system"
+                  class="setting-radio"
+                  checked
+                />
+                <label for="themeSystem" class="setting-label">Follow System Preference</label>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <h3>Units & Format</h3>
+              <div class="form-group">
+                <label for="weightUnit" class="form-label">Weight Unit</label>
+                <select id="weightUnit" class="form-select">
+                  <option value="lbs">Pounds (lbs)</option>
+                  <option value="kg">Kilograms (kg)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="dateFormat" class="form-label">Date Format</label>
+                <select id="dateFormat" class="form-select">
+                  <option value="US">MM/DD/YYYY (US)</option>
+                  <option value="EU">DD/MM/YYYY (European)</option>
+                  <option value="ISO">YYYY-MM-DD (ISO)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="weekStart" class="form-label">Week Starts On</label>
+                <select id="weekStart" class="form-select">
+                  <option value="sunday">Sunday</option>
+                  <option value="monday">Monday</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Goal Management -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">🎯 Goal Management</h2>
+            </div>
+
+            <div class="setting-group">
+              <h3>Daily Goals</h3>
+              <p>Modify your daily fitness targets. Changes apply immediately.</p>
+              
+              <div class="form-group">
+                <label for="settingsSteps" class="form-label">Daily Steps Goal</label>
+                <input
+                  type="number"
+                  id="settingsSteps"
+                  class="form-input"
+                  min="1000"
+                  max="50000"
+                />
+              </div>
+              
+              <div class="form-group">
+                <label for="settingsExercise" class="form-label">Daily Exercise Minutes</label>
+                <input
+                  type="number"
+                  id="settingsExercise"
+                  class="form-input"
+                  min="5"
+                  max="300"
+                />
+              </div>
+              
+              <div class="form-group">
+                <label for="settingsWater" class="form-label">Daily Water Goal (liters)</label>
+                <input
+                  type="number"
+                  id="settingsWater"
+                  class="form-input"
+                  min="0.5"
+                  max="10"
+                  step="0.1"
+                />
+              </div>
+
+              <button class="btn btn-primary" id="updateGoalsBtn">
+                💾 Save Daily Goals
+              </button>
+            </div>
+
+            <div class="setting-group">
+              <h3>Weight Goals</h3>
+              <p>Update your weight targets. This preserves your streak history.</p>
+              
+              <div class="form-group">
+                <label for="settingsStartingWeight" class="form-label">Starting Weight (lbs)</label>
+                <input
+                  type="number"
+                  id="settingsStartingWeight"
+                  class="form-input"
+                  min="50"
+                  max="1000"
+                  step="0.1"
+                  readonly
+                />
+                <small class="form-help">Starting weight cannot be changed to preserve data integrity</small>
+              </div>
+              
+              <div class="form-group">
+                <label for="settingsGoalWeight" class="form-label">Goal Weight (lbs)</label>
+                <input
+                  type="number"
+                  id="settingsGoalWeight"
+                  class="form-input"
+                  min="50"
+                  max="1000"
+                  step="0.1"
+                />
+              </div>
+
+              <button class="btn btn-primary" id="updateWeightGoalsBtn">
+                💾 Save Weight Goals
+              </button>
+            </div>
+          </div>
+
+          <!-- Data Management -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">📊 Data Management</h2>
+            </div>
+
+            <div class="setting-group">
+              <h3>Backup & Export</h3>
+              <p>
+                Download your fitness data for backup or migration to the cloud version.
+              </p>
+              <div class="button-group">
+                <button class="btn btn-primary" id="exportDataBtn">
+                  💾 Export All Data
+                </button>
+                <button class="btn btn-secondary" id="exportLogsBtn">
+                  📋 Export Daily Logs Only
+                </button>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <h3>Import Data</h3>
+              <p>Restore data from a backup file.</p>
+              <div class="form-group">
+                <label for="importFile" class="form-label">Select Backup File</label>
+                <input
+                  type="file"
+                  id="importFile"
+                  class="form-input"
+                  accept=".json"
+                />
+              </div>
+              <button class="btn btn-warning" id="importDataBtn">
+                📥 Import Data
+              </button>
+            </div>
+
+            <div class="setting-group">
+              <h3>Streak Management</h3>
+              <p class="warning-text">⚠️ Use with caution - these actions affect your streak history.</p>
+              <div class="button-group">
+                <button class="btn btn-warning" id="resetStreaksBtn">
+                  🔄 Reset All Streaks
+                </button>
+                <button class="btn btn-danger" id="clearTodayBtn">
+                  🗑️ Clear Today's Log
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Wellness Customization -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">🌱 Wellness Customization</h2>
+            </div>
+
+            <div class="setting-group">
+              <h3>Wellness Checklist Items</h3>
+              <p>View and understand your 5-point wellness scoring system.</p>
+              
+              <div class="wellness-items-display">
+                <div class="wellness-display-item">
+                  <div class="wellness-display-title">1. Avoided Sugary Drinks</div>
+                  <div class="wellness-display-description">No soda, juice, sweetened coffee/tea, energy drinks.</div>
+                </div>
+                <div class="wellness-display-item">
+                  <div class="wellness-display-title">2. Ate 5+ Servings of Fruits & Vegetables</div>
+                  <div class="wellness-display-description">Fresh, frozen, or cooked all count.</div>
+                </div>
+                <div class="wellness-display-item">
+                  <div class="wellness-display-title">3. Practiced Portion Control</div>
+                  <div class="wellness-display-description">Used smaller plates, stopped when satisfied.</div>
+                </div>
+                <div class="wellness-display-item">
+                  <div class="wellness-display-title">4. Did Not Eat After 8 PM</div>
+                  <div class="wellness-display-description">No late-night snacking.</div>
+                </div>
+                <div class="wellness-display-item">
+                  <div class="wellness-display-title">5. Got 7+ Hours of Sleep</div>
+                  <div class="wellness-display-description">Quality rest for recovery.</div>
+                </div>
+              </div>
+
+              <div class="info-box">
+                <strong>Scoring:</strong> You need 3 or more points daily to maintain your wellness streak. This flexible system lets you have off days while still making progress.
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <h3>Goal Thresholds</h3>
+              <p>Customize what counts as "meeting" each daily goal.</p>
+              
+              <div class="setting-item">
+                <input
+                  type="checkbox"
+                  id="allowPartialSteps"
+                  class="setting-checkbox"
+                />
+                <label for="allowPartialSteps" class="setting-label">
+                  Count 90% of steps goal as "met" (more forgiving)
+                </label>
+              </div>
+
+              <div class="setting-item">
+                <input
+                  type="checkbox"
+                  id="allowPartialExercise"
+                  class="setting-checkbox"
+                />
+                <label for="allowPartialExercise" class="setting-label">
+                  Count 80% of exercise goal as "met" (more forgiving)
+                </label>
+              </div>
+
+              <div class="setting-item">
+                <input
+                  type="checkbox"
+                  id="strictWellness"
+                  class="setting-checkbox"
+                />
+                <label for="strictWellness" class="setting-label">
+                  Require 4+ wellness points instead of 3+ (more challenging)
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- App Information -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">ℹ️ App Information</h2>
+            </div>
+
+            <div class="app-info">
+              <div class="info-row">
+                <span class="info-label">Version:</span>
+                <span class="info-value">localStorage v1.0.0</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Storage:</span>
+                <span class="info-value">Browser Local Storage</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Data Location:</span>
+                <span class="info-value">Stored locally in your browser</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Total Daily Logs:</span>
+                <span class="info-value" id="totalDataEntries">0</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Storage Used:</span>
+                <span class="info-value" id="storageUsed">Calculating...</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Profile Created:</span>
+                <span class="info-value" id="profileCreated">--</span>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <h3>Keyboard Shortcuts</h3>
+              <div class="shortcuts-list">
+                <div class="shortcut-item">
+                  <kbd>Alt + 1</kbd> <span>Switch to Dashboard</span>
+                </div>
+                <div class="shortcut-item">
+                  <kbd>Alt + 2</kbd> <span>Switch to Progress</span>
+                </div>
+                <div class="shortcut-item">
+                  <kbd>Alt + 3</kbd> <span>Switch to Rewards</span>
+                </div>
+                <div class="shortcut-item">
+                  <kbd>Alt + 4</kbd> <span>Switch to Settings</span>
+                </div>
+                <div class="shortcut-item">
+                  <kbd>Alt + T</kbd> <span>Toggle Theme</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <h3>About BribeYourselfFit</h3>
+              <p>
+                This localStorage version stores all your fitness data directly in your browser. 
+                Your data never leaves your device, ensuring complete privacy. Consider the cloud 
+                version if you want to access your data from multiple devices.
+              </p>
+
+              <div class="button-group">
+                <button class="btn btn-secondary" id="viewStatsBtn">
+                  📈 View Detailed Statistics
+                </button>
+                <a
+                  href="https://github.com/TheBIMsider/BYF"
+                  target="_blank"
+                  class="btn btn-secondary"
+                >
+                  🔗 View on GitHub
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Danger Zone -->
+          <div class="card danger-zone">
+            <div class="card-header">
+              <h2 class="card-title">⚠️ Danger Zone</h2>
+            </div>
+
+            <div class="setting-group">
+              <h3>Reset Data</h3>
+              <p class="danger-text">
+                These actions permanently delete data and cannot be undone. 
+                Export your data first as a backup!
+              </p>
+
+              <div class="button-group">
+                <button class="btn btn-danger" id="resetAllDataBtn">
+                  💥 Reset All Data
+                </button>
+                <button class="btn btn-danger" id="resetProfileBtn">
+                  👤 Reset Profile Only
+                </button>
+                <button class="btn btn-danger" id="resetLogsBtn">
+                  📋 Clear All Daily Logs
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

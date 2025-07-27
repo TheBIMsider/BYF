@@ -92,13 +92,17 @@ body {
 /* Main Content Grid */
 .main-grid {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: minmax(400px, 1fr) 300px;
   gap: 2rem;
   margin-top: 2rem;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .content-main {
   min-height: 400px;
+  max-width: 800px;
 }
 
 .sidebar {
@@ -118,6 +122,7 @@ body {
   box-shadow: var(--shadow);
   margin-bottom: 1.5rem;
   transition: var(--transition);
+  max-width: 100%;
 }
 
 .card-header {
@@ -149,6 +154,7 @@ body {
 
 .form-input {
   width: 100%;
+  max-width: 300px;
   padding: 0.75rem;
   border: 2px solid var(--border-color);
   border-radius: 6px;
@@ -156,6 +162,10 @@ body {
   color: var(--text-primary);
   font-size: 1rem;
   transition: var(--transition);
+}
+
+.form-input[type='number'] {
+  max-width: 150px;
 }
 
 .form-input:focus {
@@ -166,6 +176,7 @@ body {
 
 .form-select {
   width: 100%;
+  max-width: 200px;
   padding: 0.75rem;
   border: 2px solid var(--border-color);
   border-radius: 6px;
@@ -199,6 +210,15 @@ body {
   transform: translateY(-1px);
 }
 
+.btn-secondary {
+  background-color: var(--text-secondary);
+  color: white;
+}
+
+.btn-secondary:hover {
+  opacity: 0.9;
+}
+
 .btn-success {
   background-color: var(--accent-success);
   color: white;
@@ -206,6 +226,29 @@ body {
 
 .btn-success:hover {
   opacity: 0.9;
+}
+
+.btn-warning {
+  background-color: var(--accent-warning);
+  color: white;
+}
+
+.btn-warning:hover {
+  opacity: 0.9;
+}
+
+.btn-danger {
+  background-color: var(--accent-danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  opacity: 0.9;
+}
+
+.btn-small {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
 }
 
 /* Streak Display */
@@ -378,80 +421,13 @@ body {
   pointer-events: none;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .main-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-
-  .header-content {
-    padding: 0 0.5rem;
-  }
-
-  .container {
-    padding: 0.5rem;
-  }
-
-  .streak-number {
-    font-size: 2rem;
-  }
-
-  .setup-form {
-    margin: 1rem auto;
-  }
-
-  .wellness-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .wellness-checkbox {
-    margin-bottom: 0.5rem;
-    margin-right: 0;
-  }
-
-  .streak-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .theme-toggle {
-    padding: 0.5rem;
-    font-size: 0.8rem;
-  }
-
-  .logo {
-    font-size: 1.2rem;
-  }
-
-  .card {
-    padding: 1rem;
-  }
-
-  .sidebar {
-    padding: 1rem;
-  }
-
-  .wellness-description {
-    font-size: 0.8rem;
-  }
-}
-
-/* Accessibility Enhancements */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
-  }
-}
-
 /* Exercise Type Selector */
 .exercise-selector {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0.75rem;
   margin-top: 0.5rem;
+  max-width: 600px;
 }
 
 .exercise-option {
@@ -487,43 +463,6 @@ body {
   margin: 0;
 }
 
-@media (max-width: 768px) {
-  .exercise-selector {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
-  }
-
-  .exercise-option {
-    padding: 0.5rem;
-  }
-}
-
-/* Focus indicators for keyboard navigation */
-.btn:focus,
-.form-input:focus,
-.form-select:focus,
-.theme-toggle:focus,
-.wellness-checkbox:focus,
-.exercise-checkbox:focus,
-.tab-btn:focus,
-.chart-btn:focus,
-.claim-btn:focus {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  :root {
-    --border-color: #000000;
-    --shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-  }
-
-  [data-theme='dark'] {
-    --border-color: #ffffff;
-  }
-}
-
 /* Tab Navigation */
 .tab-navigation {
   display: flex;
@@ -554,20 +493,26 @@ body {
 }
 
 .tab-content {
-  min-height: 400px;
-}
-
-.tab-content.hidden {
+  position: relative;
+  z-index: 2;
   display: none;
+  width: 100%;
+  min-height: 400px;
+  background-color: var(--bg-primary);
+  padding: 1rem;
 }
 
 .tab-content.active {
-  display: block;
+  display: block !important;
+}
+
+.tab-content.hidden {
+  display: none !important;
 }
 
 /* Charts Styles */
 .charts-container {
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
 }
 
@@ -600,17 +545,25 @@ body {
 
 .chart-card {
   margin-bottom: 2rem;
+  display: block !important;
+  min-height: 500px;
 }
 
 .chart-container {
   position: relative;
-  height: 400px;
+  height: 400px !important;
+  width: 100% !important;
   padding: 1rem;
+  display: block !important;
+  overflow: visible;
+  max-width: 100%;
 }
 
 .chart-container canvas {
+  display: block !important;
   max-width: 100%;
-  height: auto;
+  height: 100% !important;
+  width: 100% !important;
 }
 
 /* Calendar Styles */
@@ -711,7 +664,7 @@ body {
 
 /* Rewards Styles */
 .rewards-container {
-  max-width: 1200px;
+  max-width: 1000px;
   margin: 0 auto;
 }
 
@@ -727,6 +680,7 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1rem;
+  margin-top: 1rem;
 }
 
 .milestone-item {
@@ -854,20 +808,6 @@ body {
   gap: 0.5rem;
 }
 
-.btn-small {
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-}
-
-.btn-danger {
-  background-color: var(--accent-danger);
-  color: white;
-}
-
-.btn-danger:hover {
-  opacity: 0.9;
-}
-
 .achievements-list {
   display: flex;
   flex-direction: column;
@@ -989,16 +929,285 @@ body {
   opacity: 0.9;
 }
 
-/* Responsive Design for Charts */
+/* Settings Styles */
+.settings-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.setting-group {
+  margin-bottom: 1.5rem;
+}
+
+.setting-group h3 {
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.setting-group p {
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.setting-checkbox,
+.setting-radio {
+  transform: scale(1.1);
+  cursor: pointer;
+}
+
+.setting-label {
+  cursor: pointer;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.app-info {
+  background-color: var(--bg-primary);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.info-label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.info-value {
+  color: var(--text-secondary);
+}
+
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.danger-zone {
+  border: 2px solid var(--accent-danger);
+  background: linear-gradient(
+    135deg,
+    rgba(220, 53, 69, 0.1),
+    rgba(220, 53, 69, 0.05)
+  );
+}
+
+.danger-text {
+  color: var(--accent-danger);
+  font-weight: 500;
+  background-color: rgba(220, 53, 69, 0.1);
+  padding: 0.75rem;
+  border-radius: 6px;
+  border-left: 3px solid var(--accent-danger);
+}
+
+.warning-text {
+  color: var(--accent-warning);
+  font-weight: 500;
+  background-color: rgba(255, 193, 7, 0.1);
+  padding: 0.75rem;
+  border-radius: 6px;
+  border-left: 3px solid var(--accent-warning);
+}
+
+.info-box {
+  background: linear-gradient(
+    135deg,
+    rgba(0, 123, 255, 0.1),
+    rgba(0, 123, 255, 0.05)
+  );
+  border: 1px solid var(--accent-primary);
+  border-radius: 12px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.wellness-items-display {
+  background-color: var(--bg-primary);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.wellness-display-item {
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.wellness-display-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.wellness-display-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.wellness-display-description {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.shortcuts-list {
+  background-color: var(--bg-primary);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.shortcut-item:last-child {
+  margin-bottom: 0;
+}
+
+kbd {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+.form-help {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Focus indicators for keyboard navigation */
+.btn:focus,
+.form-input:focus,
+.form-select:focus,
+.theme-toggle:focus,
+.wellness-checkbox:focus,
+.exercise-checkbox:focus,
+.tab-btn:focus,
+.chart-btn:focus,
+.claim-btn:focus,
+.setting-checkbox:focus,
+.setting-radio:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: #000000;
+    --shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  }
+
+  [data-theme='dark'] {
+    --border-color: #ffffff;
+  }
+}
+
+/* Accessibility Enhancements */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+    max-width: 800px;
+  }
+
+  .content-main {
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .header-content {
+    padding: 0 0.5rem;
+  }
+
+  .container {
+    padding: 0.5rem;
+  }
+
+  .streak-number {
+    font-size: 2rem;
+  }
+
+  .setup-form {
+    margin: 1rem auto;
+  }
+
+  .wellness-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .wellness-checkbox {
+    margin-bottom: 0.5rem;
+    margin-right: 0;
+  }
+
+  .streak-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .exercise-selector {
+    grid-template-columns: repeat(2, 1fr);
+    max-width: 100%;
+  }
+
+  .form-input {
+    max-width: 100%;
+  }
+
   .tab-navigation {
     flex-wrap: wrap;
     gap: 0.5rem;
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-primary);
+    z-index: 50;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 1rem;
   }
 
   .tab-btn {
-    padding: 0.75rem 1rem;
-    font-size: 0.9rem;
+    padding: 12px 16px;
+    font-size: 14px;
+    flex: 1;
+    text-align: center;
   }
 
   .chart-controls {
@@ -1018,236 +1227,62 @@ body {
   .calendar-day {
     font-size: 0.8rem;
   }
-}
 
-/* Reduced transparency for better readability */
-@media (prefers-contrast: more) {
-  .wellness-item.completed,
-  .streak-item.active {
-    background-color: var(--accent-success);
-    color: white;
+  .button-group {
+    flex-direction: column;
   }
 
-  .wellness-item.completed .wellness-description,
-  .streak-item.active .streak-type {
-    color: rgba(255, 255, 255, 0.9);
+  .button-group .btn {
+    width: 100%;
   }
 }
 
-/* LAYOUT FIXES - Add these rules to styles.css */
-
-/* Constrain overall app width */
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1rem;
-}
-
-/* Fix main grid to not stretch too wide */
-.main-grid {
-  display: grid;
-  grid-template-columns: minmax(400px, 1fr) 300px;
-  gap: 2rem;
-  margin-top: 2rem;
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* Ensure forms don't get too wide */
-.card {
-  max-width: 100%;
-}
-
-.content-main {
-  min-height: 400px;
-  max-width: 800px; /* Prevent forms from getting too wide */
-}
-
-/* Better form field sizing */
-.form-input {
-  max-width: 300px; /* Prevent inputs from stretching too wide */
-}
-
-.form-input[type='number'] {
-  max-width: 150px; /* Even narrower for number inputs */
-}
-
-/* Exercise selector improvements */
-.exercise-selector {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-  max-width: 600px; /* Prevent from getting too wide */
-}
-
-/* Charts container sizing */
-.charts-container {
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-.chart-container {
-  position: relative;
-  height: 400px;
-  padding: 1rem;
-  max-width: 100%;
-}
-
-/* Rewards container sizing */
-.rewards-container {
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-/* Better responsive breakpoints */
-@media (max-width: 1024px) {
-  .main-grid {
-    grid-template-columns: 1fr;
-    max-width: 800px;
-  }
-
-  .content-main {
-    max-width: 100%;
-  }
-}
-
-@media (max-width: 768px) {
-  .container {
+@media (max-width: 480px) {
+  .theme-toggle {
     padding: 0.5rem;
+    font-size: 0.8rem;
   }
 
-  .exercise-selector {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 100%;
+  .logo {
+    font-size: 1.2rem;
   }
 
-  .form-input {
-    max-width: 100%;
+  .card {
+    padding: 1rem;
+  }
+
+  .sidebar {
+    padding: 1rem;
+  }
+
+  .wellness-description {
+    font-size: 0.8rem;
+  }
+
+  .card-title {
+    font-size: 1.1rem;
+  }
+
+  .setup-title {
+    font-size: 1.7rem;
+  }
+
+  .form-group {
+    margin-bottom: 0.8rem;
+  }
+
+  .tab-btn {
+    padding: 10px 8px;
+    font-size: 13px;
   }
 }
 
-/* Fix tab content visibility */
-.tab-content {
-  display: none;
-}
-
-.tab-content.active {
-  display: block !important;
-}
-
-.tab-content.hidden {
-  display: none !important;
-}
-
-/* COMPLETE CHART AND TAB FIXES - Add to end of styles.css */
-
-/* Fix chart container dimensions */
-.chart-container {
-  position: relative;
-  height: 400px !important;
-  width: 100% !important;
-  padding: 1rem;
-  display: block !important;
-  overflow: visible;
-}
-
-.chart-container canvas {
-  display: block !important;
-  max-width: 100%;
-  height: 100% !important;
-  width: 100% !important;
-}
-
-/* Fix tab content visibility */
-.tab-content {
-  display: none;
-  min-height: 600px;
-  overflow-y: auto;
-  padding: 1rem 0;
-}
-
-.tab-content.active {
-  display: block !important;
-}
-
-/* Ensure rewards content is visible */
-#rewardsTab {
-  display: block;
-  overflow-y: auto;
-  max-height: none;
-}
-
-.milestone-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-/* Force chart cards to be visible */
-.chart-card {
-  margin-bottom: 2rem;
-  display: block !important;
-  min-height: 500px;
-}
-
-/* FIX TAB CONTENT POSITIONING - Add to styles.css */
-#appScreen {
-  position: relative;
-  z-index: 1;
-}
-
-.tab-content {
-  position: relative !important;
-  z-index: 2 !important;
-  display: none;
-  width: 100%;
-  min-height: 400px;
-  background-color: var(--bg-primary);
-  padding: 1rem;
-}
-
-.tab-content.active {
-  display: block !important;
-}
-
-.tab-content.hidden {
-  display: none !important;
-}
-
-/* Ensure main grid doesn't hide tab content */
-.main-grid {
-  position: relative;
-  z-index: 1;
-}
-
-/* Force tab content to be visible */
-#chartsTab,
-#rewardsTab {
-  position: relative !important;
-  display: block;
-  width: 100%;
-  min-height: 500px;
-  background-color: var(--bg-primary);
-}
-
-#chartsTab.hidden,
-#rewardsTab.hidden {
-  display: none !important;
-}
-
-/* MOBILE PERFORMANCE OPTIMIZATIONS */
-
-/* Reduce animations on mobile for better performance */
+/* Mobile Performance Optimizations */
 @media (max-width: 768px) {
-  /* Faster transitions on mobile */
   * {
     transition-duration: 0.2s !important;
   }
 
-  /* Optimize touch targets */
   .btn,
   .tab-btn,
   .chart-btn,
@@ -1257,58 +1292,16 @@ body {
     min-width: 44px;
   }
 
-  /* Reduce expensive shadows on mobile */
   .card,
   .sidebar,
   .success-message {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
-  /* Optimize form inputs for mobile */
   .form-input,
   .form-select {
-    font-size: 16px; /* Prevents zoom on iOS */
+    font-size: 16px;
     padding: 12px;
-  }
-
-  /* Better mobile navigation */
-  .tab-navigation {
-    position: sticky;
-    top: 0;
-    background-color: var(--bg-primary);
-    z-index: 50;
-    border-bottom: 2px solid var(--border-color);
-    margin-bottom: 1rem;
-  }
-
-  .tab-btn {
-    padding: 12px 16px;
-    font-size: 14px;
-    flex: 1;
-    text-align: center;
-  }
-}
-
-/* Ultra-mobile (phones in portrait) */
-@media (max-width: 480px) {
-  /* Reduce font sizes slightly for small screens */
-  .card-title {
-    font-size: 1.1rem;
-  }
-
-  .setup-title {
-    font-size: 1.7rem;
-  }
-
-  /* Stack form elements more efficiently */
-  .form-group {
-    margin-bottom: 0.8rem;
-  }
-
-  /* Optimize tab navigation for small screens */
-  .tab-btn {
-    padding: 10px 8px;
-    font-size: 13px;
   }
 }
 
@@ -1324,5 +1317,19 @@ body {
 @media (prefers-reduced-motion: no-preference) and (max-width: 768px) {
   .celebrating {
     animation-duration: 0.3s;
+  }
+}
+
+/* Reduced transparency for better readability */
+@media (prefers-contrast: more) {
+  .wellness-item.completed,
+  .streak-item.active {
+    background-color: var(--accent-success);
+    color: white;
+  }
+
+  .wellness-item.completed .wellness-description,
+  .streak-item.active .streak-type {
+    color: rgba(255, 255, 255, 0.9);
   }
 }
