@@ -15,6 +15,8 @@ This project was created using modern AI-powered development tools, demonstratin
 
 **Why this matters:** This showcases how AI tools can help domain experts (like AECO professionals) create sophisticated web applications without traditional programming backgrounds, while maintaining high code quality and best practices.
 
+<img width="1268" height="928" alt="BYF_Local_V1-1" src="https://github.com/user-attachments/assets/8d60d2b4-3615-4cba-bbe5-d5e2c4f412bb" />
+
 ---
 
 ## 🌟 **Choose Your Backend**
