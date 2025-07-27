@@ -123,7 +123,7 @@ BribeYourselfFit offers multiple storage options to fit your needs:
 - Perfect for getting started
 - **New in v1.1**: Advanced settings, goal management, data import/export
 
-### **🌐 JSONBin.io Cloud v1.0**
+### **🌐 JSONBin.io Cloud v1.1**
 ```bash
 git checkout jsonbin-version
 ```
@@ -298,7 +298,7 @@ BYF/
 ### **Documentation**
 - 📖 **Branch READMEs**: Each version has detailed setup instructions
 - 🏠 **localStorage v1.1**: [Setup Guide](../../tree/main) - No setup required!
-- 🌐 **JSONBin v1.0**: [Setup Guide](../../tree/jsonbin-version)
+- 🌐 **JSONBin v1.1**: [Setup Guide](../../tree/jsonbin-version)
 - 📊 **Airtable Version**: "Coming Soon"
 - 🔥 **Firebase Version**: "Coming Soon"
 - 🔌 **API Integration**: *(guides coming with each backend)*
