@@ -15,6 +15,8 @@ This cloud version was developed using cutting-edge AI-powered development tools
 
 This demonstrates how AI tools enable domain experts to build sophisticated cloud-integrated applications with modern web technologies and API patterns.
 
+<img width="1261" height="1038" alt="BYF_JSONBin_V1-1" src="https://github.com/user-attachments/assets/a4eb69c0-72ad-43b4-9254-cdbc1bf71e72" />
+
 ---
 
 ## 🚀 Quick Setup
