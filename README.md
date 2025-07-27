@@ -23,8 +23,8 @@ BribeYourselfFit offers multiple storage options to fit your needs:
 
 | Version | Storage | Setup | Best For | Branch | Status |
 |---------|---------|-------|----------|--------|--------|
-| 🏠 **localStorage** | Browser only | None | Simple setup, offline use | `main` | ✅ Ready |
-| 🌐 **JSONBin.io** | Cloud API | API key | Cross-device sync, simple cloud | `jsonbin-version` | ✅ Ready |
+| 🏠 **localStorage** | Browser only | None | Simple setup, offline use | `main` | ✅ v1.1 Ready |
+| 🌐 **JSONBin.io** | Cloud API | API key | Cross-device sync, simple cloud | `jsonbin-version` | ✅ v1.0 Ready |
 | 📊 **Airtable** | Structured DB | API setup | Rich data features, sharing | `airtable-version` | 🚧 Coming Soon |
 | 🔥 **Firebase** | Real-time DB | Project setup | Enterprise scale, real-time | `firebase-version` | 🚧 Coming Soon |
 
@@ -73,6 +73,13 @@ BribeYourselfFit offers multiple storage options to fit your needs:
 - **Offline Capable**: localStorage version works without internet
 - **Touch Optimized**: 44px touch targets, mobile-friendly forms
 
+### **⚙️ Advanced Settings** *(localStorage v1.1 Features)*
+- **App Preferences**: Theme selection, units (Imperial/Metric), date formats
+- **Goal Management**: Modify daily targets and weight goals without losing streak history
+- **Data Management**: Complete backup/restore system with import/export
+- **Wellness Customization**: View wellness checklist details and customize goal thresholds
+- **Streak Management**: Reset options with granular control (streaks only, logs only, etc.)
+
 ## 🎨 **User Interface**
 
 ### **Clean & Minimal Design**
@@ -85,6 +92,7 @@ BribeYourselfFit offers multiple storage options to fit your needs:
 - **Dashboard**: Daily logging and streak overview
 - **Progress**: Charts and analytics
 - **Rewards**: Achievements and milestone management
+- **Settings**: Comprehensive preferences and data management *(v1.1)*
 
 ## 🔧 **Technical Details**
 
@@ -98,7 +106,7 @@ BribeYourselfFit offers multiple storage options to fit your needs:
 - ✅ **Loads in <3 seconds** on mobile
 - ✅ **Handles 2+ years** of daily data efficiently
 - ✅ **Mobile performance**: 86/100 Lighthouse score
-- ✅ **Accessibility**: 82/100 with keyboard navigation
+- ✅ **Accessibility**: Enhanced keyboard navigation and focus indicators
 
 ### **Code Quality**
 - 📝 **Well-documented**: Comprehensive comments for beginners
@@ -108,13 +116,14 @@ BribeYourselfFit offers multiple storage options to fit your needs:
 
 ## 📖 **Backend Setup Guides**
 
-### **🏠 localStorage (Main Branch)**
+### **🏠 localStorage v1.1 (Main Branch)**
 **✅ No setup required!**
 - Data stored in browser only
 - Works offline
 - Perfect for getting started
+- **New in v1.1**: Advanced settings, goal management, data import/export
 
-### **🌐 JSONBin.io Cloud**
+### **🌐 JSONBin.io Cloud v1.0**
 ```bash
 git checkout jsonbin-version
 ```
@@ -166,8 +175,8 @@ git clone https://github.com/TheBIMsider/BYF.git
 cd BYF
 
 # Choose your branch
-git checkout main                    # localStorage version
-git checkout jsonbin-version        # JSONBin.io version
+git checkout main                    # localStorage v1.1
+git checkout jsonbin-version        # JSONBin.io v1.0
 git checkout airtable-version       # Airtable version
 git checkout firebase-version       # Firebase version
 
@@ -226,6 +235,17 @@ BYF/
   water: 22,
   wellness: 16
 }
+
+// Settings (v1.1)
+{
+  themePreference: "system",
+  weightUnit: "lbs",
+  dateFormat: "US",
+  weekStart: "sunday",
+  allowPartialSteps: false,
+  allowPartialExercise: false,
+  strictWellness: false
+}
 ```
 
 ## 🔒 **Privacy & Security**
@@ -237,7 +257,7 @@ BYF/
 - ✅ **Self-hosted** - deploy on your own infrastructure
 
 ### **Security by Backend**
-- **localStorage**: Data stays in your browser only
+- **localStorage**: Data stays in your browser only - ultimate privacy
 - **JSONBin.io**: API keys stored locally, HTTPS encryption
 - **Airtable**: OAuth or API key authentication
 - **Firebase**: Google's enterprise security infrastructure
@@ -256,7 +276,8 @@ BYF/
 ## 🗺️ **Roadmap**
 
 ### **Phase 4: Backend Integrations** ✅
-- [x] JSONBin.io cloud storage
+- [x] JSONBin.io cloud storage (v1.0)
+- [x] localStorage advanced features (v1.1)
 - [ ] Airtable structured database
 - [ ] Firebase real-time sync
 
@@ -276,8 +297,8 @@ BYF/
 
 ### **Documentation**
 - 📖 **Branch READMEs**: Each version has detailed setup instructions
-- 🏠 **localStorage Version**: [Setup Guide](../../tree/main)
-- 🌐 **JSONBin Version**: [Setup Guide](../../tree/jsonbin-version)
+- 🏠 **localStorage v1.1**: [Setup Guide](../../tree/main) - No setup required!
+- 🌐 **JSONBin v1.0**: [Setup Guide](../../tree/jsonbin-version)
 - 📊 **Airtable Version**: "Coming Soon"
 - 🔥 **Firebase Version**: "Coming Soon"
 - 🔌 **API Integration**: *(guides coming with each backend)*
