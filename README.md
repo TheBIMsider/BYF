@@ -176,7 +176,7 @@ cd BYF
 
 # Choose your branch
 git checkout main                    # localStorage v1.1
-git checkout jsonbin-version        # JSONBin.io v1.0
+git checkout jsonbin-version        # JSONBin.io v1.1
 git checkout airtable-version       # Airtable version
 git checkout firebase-version       # Firebase version
 
@@ -276,7 +276,7 @@ BYF/
 ## 🗺️ **Roadmap**
 
 ### **Phase 4: Backend Integrations** ✅
-- [x] JSONBin.io cloud storage (v1.0)
+- [x] JSONBin.io cloud storage (v1.1)
 - [x] localStorage advanced features (v1.1)
 - [ ] Airtable structured database
 - [ ] Firebase real-time sync
