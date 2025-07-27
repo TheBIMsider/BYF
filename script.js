@@ -125,7 +125,7 @@ class BribeYourselfFitCloud {
       achievements: this.achievements,
       exportDate: new Date().toISOString(),
       exportType: 'local',
-      version: '1.0.0-cloud',
+      version: '1.1.0-cloud',
     };
 
     this.downloadData(localData, 'local');
@@ -1417,6 +1417,114 @@ class BribeYourselfFitCloud {
     if (viewStatsBtn) {
       viewStatsBtn.addEventListener('click', this.viewAppStats.bind(this));
     }
+
+    // Theme preference radio buttons
+    const themeRadios = document.querySelectorAll(
+      'input[name="themePreference"]'
+    );
+    themeRadios.forEach((radio) => {
+      radio.addEventListener(
+        'change',
+        this.handleThemePreferenceChange.bind(this)
+      );
+    });
+
+    // Unit and format selectors
+    const weightUnit = document.getElementById('weightUnit');
+    const dateFormat = document.getElementById('dateFormat');
+    const weekStart = document.getElementById('weekStart');
+
+    if (weightUnit) {
+      weightUnit.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (dateFormat) {
+      dateFormat.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (weekStart) {
+      weekStart.addEventListener('change', this.handleSettingChange.bind(this));
+    }
+
+    // Goal update buttons
+    const updateGoalsBtn = document.getElementById('updateGoalsBtn');
+    const updateWeightGoalsBtn = document.getElementById(
+      'updateWeightGoalsBtn'
+    );
+
+    if (updateGoalsBtn) {
+      updateGoalsBtn.addEventListener(
+        'click',
+        this.handleUpdateDailyGoals.bind(this)
+      );
+    }
+    if (updateWeightGoalsBtn) {
+      updateWeightGoalsBtn.addEventListener(
+        'click',
+        this.handleUpdateWeightGoals.bind(this)
+      );
+    }
+
+    // Goal threshold checkboxes
+    const allowPartialSteps = document.getElementById('allowPartialSteps');
+    const allowPartialExercise = document.getElementById(
+      'allowPartialExercise'
+    );
+    const strictWellness = document.getElementById('strictWellness');
+
+    if (allowPartialSteps) {
+      allowPartialSteps.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (allowPartialExercise) {
+      allowPartialExercise.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (strictWellness) {
+      strictWellness.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+
+    // Enhanced reset buttons
+    const resetStreaksBtn = document.getElementById('resetStreaksBtn');
+    const clearTodayBtn = document.getElementById('clearTodayBtn');
+    const resetProfileBtn = document.getElementById('resetProfileBtn');
+    const resetLogsBtn = document.getElementById('resetLogsBtn');
+
+    if (resetStreaksBtn) {
+      resetStreaksBtn.addEventListener('click', this.resetStreaks.bind(this));
+    }
+    if (clearTodayBtn) {
+      clearTodayBtn.addEventListener('click', this.clearTodaysLog.bind(this));
+    }
+    if (resetProfileBtn) {
+      resetProfileBtn.addEventListener('click', this.resetProfile.bind(this));
+    }
+    if (resetLogsBtn) {
+      resetLogsBtn.addEventListener('click', this.resetLogs.bind(this));
+    }
+
+    // Import file handler (enhanced)
+    const importFile = document.getElementById('importFile');
+    if (importFile) {
+      importFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          // Use existing importData logic but ensure it syncs to cloud
+          this.importData(file);
+        }
+      });
+    }
   }
 
   /**
@@ -1718,6 +1826,8 @@ class BribeYourselfFitCloud {
       console.error('Error loading local data:', error);
       this.showError('Failed to load saved data. Starting fresh.');
     }
+
+    this.loadSettingsFromStorage();
   }
 
   /**
@@ -2094,6 +2204,393 @@ class BribeYourselfFitCloud {
     }
 
     return stats;
+  }
+
+  /**
+   * Handle theme preference changes (enhanced for cloud)
+   */
+  handleThemePreferenceChange(e) {
+    const value = e.target.value;
+    this.settings = this.settings || {};
+    this.settings.themePreference = value;
+    this.saveSettings();
+
+    if (value === 'system') {
+      // Follow system preference
+      const systemPrefersDark = window.matchMedia(
+        '(prefers-color-scheme: dark)'
+      ).matches;
+      const theme = systemPrefersDark ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('byf_theme', theme);
+    } else {
+      // Use selected theme
+      document.documentElement.setAttribute('data-theme', value);
+      localStorage.setItem('byf_theme', value);
+    }
+
+    this.updateThemeToggle(document.documentElement.getAttribute('data-theme'));
+
+    // Sync settings to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+    }
+  }
+
+  /**
+   * Handle general setting changes (enhanced for cloud)
+   */
+  handleSettingChange(e) {
+    const setting = e.target.id;
+    const value =
+      e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+
+    this.settings = this.settings || {};
+    this.settings[setting] = value;
+    this.saveSettings();
+
+    // Apply certain settings immediately
+    if (setting === 'weekStart') {
+      // Re-render calendar if it's currently visible
+      if (this.currentTab === 'charts') {
+        this.renderStreakCalendar();
+      }
+    }
+
+    // Sync settings to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+    }
+  }
+
+  /**
+   * Handle daily goals update (enhanced for cloud)
+   */
+  handleUpdateDailyGoals() {
+    const stepsInput = document.getElementById('settingsSteps');
+    const exerciseInput = document.getElementById('settingsExercise');
+    const waterInput = document.getElementById('settingsWater');
+
+    const steps = parseInt(stepsInput.value);
+    const exercise = parseInt(exerciseInput.value);
+    const water = parseFloat(waterInput.value);
+
+    // Validate inputs
+    if (isNaN(steps) || steps < 1000 || steps > 50000) {
+      this.showError('Steps goal must be between 1,000 and 50,000');
+      return;
+    }
+    if (isNaN(exercise) || exercise < 5 || exercise > 300) {
+      this.showError('Exercise goal must be between 5 and 300 minutes');
+      return;
+    }
+    if (isNaN(water) || water < 0.5 || water > 10) {
+      this.showError('Water goal must be between 0.5 and 10 liters');
+      return;
+    }
+
+    // Update goals
+    this.currentUser.dailySteps = steps;
+    this.currentUser.dailyExercise = exercise;
+    this.currentUser.dailyWater = water;
+
+    this.saveLocalData();
+    this.updateDashboard();
+
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+      this.showSuccess('Daily goals updated and synced to cloud!');
+    } else {
+      this.showSuccess('Daily goals updated! Will sync when connected.');
+    }
+  }
+
+  /**
+   * Handle weight goals update (enhanced for cloud)
+   */
+  handleUpdateWeightGoals() {
+    const goalWeightInput = document.getElementById('settingsGoalWeight');
+    const goalWeight = parseFloat(goalWeightInput.value);
+
+    // Validate input
+    if (isNaN(goalWeight) || goalWeight < 50 || goalWeight > 1000) {
+      this.showError('Goal weight must be between 50 and 1000 lbs');
+      return;
+    }
+
+    if (Math.abs(goalWeight - this.currentUser.startingWeight) < 1) {
+      this.showError(
+        'Goal weight should be at least 1 lb different from starting weight'
+      );
+      return;
+    }
+
+    // Update goal weight
+    this.currentUser.goalWeight = goalWeight;
+
+    // Regenerate weight milestones
+    this.initializeDefaultMilestones();
+
+    this.saveLocalData();
+    this.updateDashboard();
+
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+      this.showSuccess('Weight goal updated and synced to cloud!');
+    } else {
+      this.showSuccess('Weight goal updated! Will sync when connected.');
+    }
+  }
+
+  /**
+   * Reset functions adapted for cloud version
+   */
+
+  /**
+   * Reset streaks only (cloud version)
+   */
+  resetStreaks() {
+    if (!confirm('This will reset all your streaks to 0. Continue?')) return;
+
+    this.streaks = this.initializeStreaks();
+    this.saveLocalData();
+    this.updateDashboard();
+
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+      this.showSuccess('All streaks reset and synced to cloud!');
+    } else {
+      this.showSuccess('All streaks reset! Will sync when connected.');
+    }
+  }
+
+  /**
+   * Clear today's log only (cloud version)
+   */
+  clearTodaysLog() {
+    if (!confirm("This will clear today's fitness log. Continue?")) return;
+
+    delete this.dailyLogs[this.currentDate];
+    this.saveLocalData();
+    this.updateDashboard();
+    this.loadTodaysData(); // Refresh the form
+
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+      this.showSuccess("Today's log cleared and synced to cloud!");
+    } else {
+      this.showSuccess("Today's log cleared! Will sync when connected.");
+    }
+  }
+
+  /**
+   * Reset profile but keep logs (cloud version)
+   */
+  resetProfile() {
+    if (
+      !confirm(
+        'This will reset your profile but keep your daily logs. Continue?'
+      )
+    )
+      return;
+
+    // Reset user profile
+    this.currentUser = null;
+    this.saveLocalData();
+
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+    }
+
+    this.showSetupScreen();
+    this.showSuccess('Profile reset. Please set up your goals again.');
+  }
+
+  /**
+   * Clear all logs but keep profile (cloud version)
+   */
+  resetLogs() {
+    if (
+      !confirm(
+        'This will delete ALL daily logs but keep your profile. Continue?'
+      )
+    )
+      return;
+    if (!confirm('Are you sure? This cannot be undone!')) return;
+
+    this.dailyLogs = {};
+    this.streaks = this.initializeStreaks();
+    this.achievements = []; // Clear achievements since they're based on logs
+    this.saveLocalData();
+    this.updateDashboard();
+
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+      this.showSuccess('All daily logs cleared and synced to cloud!');
+    } else {
+      this.showSuccess('All daily logs cleared! Will sync when connected.');
+    }
+  }
+
+  /**
+   * Get default settings (for cloud version)
+   */
+  getDefaultSettings() {
+    return {
+      themePreference: 'system',
+      weightUnit: 'lbs',
+      dateFormat: 'US',
+      weekStart: 'sunday',
+      allowPartialSteps: false,
+      allowPartialExercise: false,
+      strictWellness: false,
+    };
+  }
+
+  /**
+   * Save settings to localStorage (enhanced for cloud)
+   */
+  saveSettings() {
+    try {
+      localStorage.setItem('byf_settings', JSON.stringify(this.settings));
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
+  }
+
+  /**
+   * Load settings tab content (enhanced for cloud)
+   */
+  loadSettingsTab() {
+    this.updateSettingsDisplay();
+    this.loadSettingsFromStorage(); // Add this new function
+  }
+
+  /**
+   * Load settings from storage (new function)
+   */
+  loadSettingsFromStorage() {
+    try {
+      // Load settings from localStorage
+      const savedSettings = localStorage.getItem('byf_settings');
+      if (savedSettings) {
+        this.settings = {
+          ...this.getDefaultSettings(),
+          ...JSON.parse(savedSettings),
+        };
+      } else {
+        this.settings = this.getDefaultSettings();
+      }
+
+      // Apply theme preference
+      if (this.settings.themePreference === 'system') {
+        this.setupSystemThemeListener();
+      } else {
+        document.documentElement.setAttribute(
+          'data-theme',
+          this.settings.themePreference
+        );
+        localStorage.setItem('byf_theme', this.settings.themePreference);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      this.settings = this.getDefaultSettings();
+    }
+  }
+
+  /**
+   * Setup system theme preference listener (new function)
+   */
+  setupSystemThemeListener() {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleThemeChange = (e) => {
+      if (this.settings.themePreference === 'system') {
+        const theme = e.matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('byf_theme', theme);
+        this.updateThemeToggle(theme);
+      }
+    };
+
+    mediaQuery.addListener(handleThemeChange);
+    // Set initial theme
+    handleThemeChange(mediaQuery);
+  }
+
+  /**
+   * Enhanced updateSettingsDisplay function
+   */
+  updateSettingsDisplay() {
+    // Call existing updateSettingsDisplay first
+    if (this.originalUpdateSettingsDisplay) {
+      this.originalUpdateSettingsDisplay.call(this);
+    }
+
+    // Update theme preference radio buttons
+    const themePreference = this.settings?.themePreference || 'system';
+    const themeRadio = document.querySelector(
+      `input[value="${themePreference}"]`
+    );
+    if (themeRadio) {
+      themeRadio.checked = true;
+    }
+
+    // Update unit and format selectors
+    const weightUnit = document.getElementById('weightUnit');
+    const dateFormat = document.getElementById('dateFormat');
+    const weekStart = document.getElementById('weekStart');
+
+    if (weightUnit && this.settings?.weightUnit) {
+      weightUnit.value = this.settings.weightUnit;
+    }
+    if (dateFormat && this.settings?.dateFormat) {
+      dateFormat.value = this.settings.dateFormat;
+    }
+    if (weekStart && this.settings?.weekStart) {
+      weekStart.value = this.settings.weekStart;
+    }
+
+    // Update daily goals inputs
+    if (this.currentUser) {
+      const settingsSteps = document.getElementById('settingsSteps');
+      const settingsExercise = document.getElementById('settingsExercise');
+      const settingsWater = document.getElementById('settingsWater');
+      const settingsStartingWeight = document.getElementById(
+        'settingsStartingWeight'
+      );
+      const settingsGoalWeight = document.getElementById('settingsGoalWeight');
+
+      if (settingsSteps) settingsSteps.value = this.currentUser.dailySteps;
+      if (settingsExercise)
+        settingsExercise.value = this.currentUser.dailyExercise;
+      if (settingsWater) settingsWater.value = this.currentUser.dailyWater;
+      if (settingsStartingWeight)
+        settingsStartingWeight.value = this.currentUser.startingWeight;
+      if (settingsGoalWeight)
+        settingsGoalWeight.value = this.currentUser.goalWeight;
+    }
+
+    // Update goal threshold checkboxes
+    const allowPartialSteps = document.getElementById('allowPartialSteps');
+    const allowPartialExercise = document.getElementById(
+      'allowPartialExercise'
+    );
+    const strictWellness = document.getElementById('strictWellness');
+
+    if (allowPartialSteps)
+      allowPartialSteps.checked = this.settings?.allowPartialSteps || false;
+    if (allowPartialExercise)
+      allowPartialExercise.checked =
+        this.settings?.allowPartialExercise || false;
+    if (strictWellness)
+      strictWellness.checked = this.settings?.strictWellness || false;
   }
 
   /**
