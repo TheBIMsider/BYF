@@ -1,4 +1,4 @@
-# BribeYourselfFit - JSONBin Cloud Version
+# BribeYourselfFit - JSONBin Cloud Version v1.1.0
 
 🌐 **Cloud-synced fitness tracking with JSONBin.io storage**
 
@@ -66,20 +66,60 @@ This demonstrates how AI tools enable domain experts to build sophisticated clou
 - **Gamification**: Achievements, milestones, and custom rewards
 - **Data Export**: Download your data as JSON backup
 
-## ⚙️ Settings & Configuration
+### ⚙️ **Advanced Settings** *(v1.1.0 Features)*
+- **App Preferences**: Theme selection, units (Imperial/Metric), date formats, week start day
+- **Goal Management**: Modify daily targets and weight goals without losing streak history
+- **Enhanced Data Management**: Complete backup/restore system with import/export for cloud migration
+- **Wellness Customization**: View wellness checklist details and customize goal thresholds
+- **Granular Reset Options**: Multiple reset choices (streaks only, today's log, profile only, etc.)
+- **Cloud-Specific Controls**: Browser cache management, cloud data deletion, sync preferences
 
-### Cloud Settings
+## 🎨 **User Interface**
+
+### **Intuitive Navigation**
+- **Dashboard**: Daily logging and streak overview
+- **Progress**: Charts and analytics
+- **Rewards**: Achievements and milestone management
+- **Settings**: Comprehensive preferences, goal management, and cloud controls *(v1.1.0)*
+
+## ⚙️ **Settings & Configuration** *(v1.1.0)*
+
+### **☁️ Cloud Sync Settings**
 - **Force Sync**: Trigger immediate cloud sync
 - **Test Connection**: Verify API key and connectivity  
 - **Update API Key**: Change to different JSONBin account
 - **Auto Sync**: Toggle automatic background syncing
 - **Sync Notifications**: Control sync status messages
 
-### Data Management
+### **⚙️ App Preferences**
+- **Theme Control**: Light, Dark, or System preference
+- **Units & Format**: Weight units (lbs/kg), date formats (US/EU/ISO), week start day
+- **Display Options**: Customizable interface preferences
+
+### **🎯 Goal Management**
+- **Daily Goals**: Modify steps, exercise, and water targets with live sync
+- **Weight Goals**: Update goal weight while preserving streak history
+- **Goal Validation**: Smart input validation with helpful error messages
+
+### **📊 Enhanced Data Management**
 - **Export Cloud Data**: Download from JSONBin.io
 - **Export Local Backup**: Download browser storage backup
-- **View App Statistics**: See usage stats and data size
-- **Reset Options**: Clear local, cloud, or all data
+- **Import Data**: Restore from backup files with cloud sync
+- **App Statistics**: View usage stats, data size, and sync status
+
+### **🌱 Wellness Customization**
+- **Checklist Details**: View explanations for all 5 wellness items
+- **Goal Thresholds**: Customize what counts as "meeting" each goal
+- **Flexible Scoring**: Adjust wellness requirements (3+ vs 4+ points)
+
+### **⚠️ Granular Reset Options**
+- **🔄 Reset All Streaks**: Clear counters but keep data
+- **🗑️ Clear Today's Log**: Remove just today's entry
+- **👤 Reset Profile Only**: Clear goals but keep logs
+- **📋 Clear All Daily Logs**: Remove logs but keep profile
+- **🖥️ Clear Browser Cache**: Local data only (cloud remains)
+- **☁️ Delete Cloud Data**: JSONBin data only (cache remains)
+- **💥 Reset Everything**: Complete data wipe (local + cloud)
 
 ### Sync Status Indicators
 - 🟢 **Connected/Synced**: All data current
@@ -120,8 +160,9 @@ Your fitness data is stored as a single JSON object in JSONBin.io:
   "streaks": { "consecutive day counters..." },
   "customRewards": [ "your milestone rewards..." ],
   "achievements": [ "unlocked achievements..." ],
-  "lastSync": "2025-07-26T...",
-  "version": "1.0.0-cloud"
+  "settings": { "app preferences and thresholds..." },
+  "lastSync": "2025-07-27T...",
+  "version": "1.1.0-cloud"
 }
 ```
 
@@ -129,8 +170,9 @@ Your fitness data is stored as a single JSON object in JSONBin.io:
 Typical usage per month:
 - **Daily logging**: ~30 requests
 - **Loading app**: ~30 requests  
-- **Rewards/settings**: ~10 requests
-- **Total**: ~70 requests/month (well under 10K limit)
+- **Settings/goals**: ~15 requests *(new in v1.1.0)*
+- **Rewards/achievements**: ~10 requests
+- **Total**: ~85 requests/month (well under 10K limit)
 
 ## 🔧 Configuration
 
@@ -140,10 +182,11 @@ If deploying on platforms that support environment variables:
 JSONBIN_API_KEY=your_api_key_here
 ```
 
-### Customization
-- Modify daily goals and milestones in setup
-- Customize wellness checklist items (requires code changes)
-- Adjust validation ranges in `script.js`
+### Customization *(Enhanced in v1.1.0)*
+- Modify daily goals and weight targets through Settings UI
+- Customize wellness thresholds and goal tolerances
+- Adjust theme and display preferences
+- Configure sync behavior and notifications
 
 ## 👨‍💻 Development Commands
 
@@ -189,16 +232,19 @@ resetData()
 - ✅ Your data is safe - will sync when connection restores
 - ✅ Use "Force Sync" button in settings when connection returns
 
-**Data not syncing**
+**Settings not saving**
 - ✅ Check sync status indicator in header
 - ✅ Verify auto-sync is enabled in settings
-- ✅ Look for pending sync count in settings
 - ✅ Use "Force Sync" to trigger immediate sync
+- ✅ Settings are saved locally even if cloud sync fails
 
-### Reset & Recovery
-- Use **Settings > Change API Key** to switch accounts
+### Reset & Recovery *(Enhanced in v1.1.0)*
+- Use **Settings > App Preferences** to customize interface
+- Use **Settings > Goal Management** to update targets
 - Use **Settings > Export Data** to backup before making changes
-- Use **Settings > Reset All Data** to start fresh (⚠️ permanent!)
+- Use **Settings > Danger Zone** for granular reset options
+- Use **Clear Browser Cache** to reset local data only
+- Use **Delete Cloud Data** to reset cloud storage only
 
 ## 📱 Mobile Installation
 
@@ -216,15 +262,16 @@ resetData()
 
 ## 🔄 Data Migration
 
-### From localStorage Version
-1. Export data from localStorage version
+### From localStorage Version *(Enhanced in v1.1.0)*
+1. Export data from localStorage version using Settings > Export
 2. Setup JSONBin version with API key
-3. Use browser's developer tools to import data
-4. Contact support if you need help with migration
+3. Use Settings > Import Data to restore your backup
+4. All data including settings will be migrated and synced to cloud
 
 ### To Other Versions
 - Data export works with all BribeYourselfFit versions
 - JSON format is compatible across all storage backends
+- Settings and preferences transfer between versions
 
 ## 🆘 Support
 
@@ -236,22 +283,29 @@ resetData()
 1. Check this README for common solutions
 2. Export your data as backup before troubleshooting
 3. Create GitHub issue with:
+   - Version: JSONBin v1.1.0
    - Browser and version
    - Error messages (remove API keys!)
    - Steps to reproduce the problem
 
 ## 🔮 Roadmap
 
+### Completed in v1.1.0
+- ✅ **Advanced Settings UI** with comprehensive preferences
+- ✅ **Goal Management** with live cloud sync
+- ✅ **Enhanced Data Management** with import/export
+- ✅ **Wellness Customization** with threshold controls
+- ✅ **Granular Reset Options** for better data control
+
 ### Planned Features
-- ✅ **Advanced charts** with full Canvas implementation *(completed)*
-- ✅ **Offline mode** with sync when online *(completed)*
 - 🔔 **Push notifications** for daily logging reminders
 - 📈 **Analytics dashboard** with detailed insights
-- 🤝 **Family sharing** options
-- 📋 **Custom wellness checklists**
+- 🤝 **Family sharing** options with cloud accounts
+- 📋 **Custom wellness checklists** with user-defined items
+- 🎨 **Advanced theming** with custom color schemes
 
 ### Other Backend Versions
-- 🟢 **localStorage** (offline-only, no setup required)
+- 🟢 **localStorage v1.1** (offline-only, no setup required)
 - 🟡 **Airtable** (structured data with beautiful interface)
 - 🔵 **Firebase** (enterprise scaling with real-time sync)
 
@@ -275,6 +329,10 @@ BSD-3-Clause License - see [LICENSE](LICENSE) file for details.
 2. **Enable GitHub Pages** in repository settings  
 3. **Get your JSONBin.io API key** (free account)
 4. **Open your deployed app** and enter API key
-5. **Start your fitness journey!** 🎯
+5. **Start your fitness journey with cloud sync!** 🎯
 
 **Questions?** Create an issue on GitHub - we're here to help! 💪
+
+---
+
+*JSONBin Cloud v1.1.0 - Enhanced with advanced settings and goal management*
