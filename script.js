@@ -459,7 +459,7 @@ class BribeYourselfFit {
       dailyLogs: this.dailyLogs,
       exportDate: new Date().toISOString(),
       exportType: 'logs_only',
-      version: '1.0.0-localStorage',
+      version: '1.1.0-localStorage',
     };
 
     this.downloadData(exportData, 'daily_logs');
