@@ -1,22 +1,21 @@
 /**
- * BribeYourselfFit - Gamified Fitness Tracker
+ * BribeYourselfFit - Cloud Version with JSONBin.io Integration
  *
  * This JavaScript file implements a complete fitness tracking system with:
- * - Daily logging with streak tracking
- * - Weight progress monitoring
- * - Gamification with milestones and rewards
- * - Data visualization with charts
- * - localStorage persistence
+ * - Cloud storage via JSONBin.io API
+ * - Offline-first sync with localStorage backup
+ * - Real-time sync status indicators
+ * - Progressive error handling and fallback
+ * - Identical UX to localStorage version
  *
- * Data Structure:
- * - User profile (goals, starting stats)
- * - Daily logs (weight, steps, exercise, water, wellness)
- * - Streaks (daily consecutive + weekly/monthly cumulative)
- * - Milestones (default + custom rewards)
- * - Achievements (completed milestones)
+ * Cloud Storage Architecture:
+ * - Primary: JSONBin.io cloud storage
+ * - Backup: localStorage for offline functionality
+ * - Sync Strategy: Offline-first with background sync
+ * - Error Handling: Progressive fallback with user feedback
  */
 
-class BribeYourselfFit {
+class BribeYourselfFitCloud {
   constructor() {
     // Initialize app state
     this.currentUser = null;
@@ -25,12 +24,25 @@ class BribeYourselfFit {
     this.customRewards = [];
     this.achievements = [];
     this.defaultMilestones = [];
-    this.defaultMilestones = [];
-    this.settings = {};
     this.currentTab = 'dashboard';
     this.chartPeriod = 7;
     this.currentDate = new Date().toISOString().split('T')[0];
-    this.deferredPrompt = null; // For PWA install prompt
+
+    // Cloud configuration
+    this.cloudConfig = {
+      apiKey: null,
+      binId: null,
+      isConnected: false,
+      lastSync: null,
+      syncInProgress: false,
+      retryCount: 0,
+      maxRetries: 3,
+    };
+
+    // Sync queue for offline-first functionality
+    this.syncQueue = [];
+    this.autoSyncEnabled = true;
+    this.syncNotifications = true;
 
     // Data validation ranges
     this.validationRanges = {
@@ -46,424 +58,78 @@ class BribeYourselfFit {
 
   /**
    * Initialize the application
-   * Load data, set up event listeners, and determine initial screen
    */
   init() {
-    this.loadData();
+    this.loadLocalData();
+    this.loadCloudConfig();
     this.setupEventListeners();
     this.updateCurrentDate();
 
     // Show setup screen if no user profile exists
-    if (!this.currentUser) {
+    if (!this.currentUser || !this.cloudConfig.apiKey) {
       this.showSetupScreen();
     } else {
       this.showAppScreen();
       this.updateDashboard();
+      this.initializeCloudSync();
     }
   }
 
   /**
-   * Set up all event listeners for the application
+   * Load cloud configuration from localStorage
    */
-  setupEventListeners() {
-    // Theme toggle
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-      themeToggle.addEventListener('click', this.toggleTheme.bind(this));
-    }
-
-    // Setup form
-    const setupForm = document.getElementById('setupForm');
-    if (setupForm) {
-      setupForm.addEventListener('submit', this.handleSetup.bind(this));
-    }
-
-    // Daily log form
-    const dailyLogForm = document.getElementById('dailyLogForm');
-    if (dailyLogForm) {
-      dailyLogForm.addEventListener('submit', this.handleDailyLog.bind(this));
-    }
-
-    // Wellness checkboxes
-    const wellnessCheckboxes = document.querySelectorAll('.wellness-checkbox');
-    wellnessCheckboxes.forEach((checkbox) => {
-      checkbox.addEventListener('change', this.updateWellnessScore.bind(this));
-    });
-
-    // Exercise type checkboxes
-    const exerciseCheckboxes = document.querySelectorAll('.exercise-checkbox');
-    exerciseCheckboxes.forEach((checkbox) => {
-      checkbox.addEventListener(
-        'change',
-        this.updateExerciseSelection.bind(this)
-      );
-    });
-
-    // Tab navigation
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    tabBtns.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        this.switchTab(e.target.dataset.tab);
-      });
-    });
-
-    // Chart period controls
-    const chartBtns = document.querySelectorAll('.chart-btn');
-    chartBtns.forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        this.setChartPeriod(parseInt(e.target.dataset.period) || 'all');
-      });
-    });
-
-    // Reward form
-    const rewardForm = document.getElementById('rewardForm');
-    if (rewardForm) {
-      rewardForm.addEventListener('submit', this.handleCustomReward.bind(this));
-    }
-
-    // Reward type selector
-    const rewardType = document.getElementById('rewardType');
-    if (rewardType) {
-      rewardType.addEventListener(
-        'change',
-        this.updateRewardCriteria.bind(this)
-      );
-    }
-
-    // Calendar navigation
-    const prevMonth = document.getElementById('prevMonth');
-    const nextMonth = document.getElementById('nextMonth');
-    if (prevMonth)
-      prevMonth.addEventListener('click', () => this.navigateCalendar(-1));
-    if (nextMonth)
-      nextMonth.addEventListener('click', () => this.navigateCalendar(1));
-
-    // Settings event listeners
-    this.setupSettingsEventListeners();
-  }
-
-  /**
-   * Setup settings-specific event listeners
-   */
-  setupSettingsEventListeners() {
-    // Theme preference radio buttons
-    const themeRadios = document.querySelectorAll(
-      'input[name="themePreference"]'
-    );
-    themeRadios.forEach((radio) => {
-      radio.addEventListener(
-        'change',
-        this.handleThemePreferenceChange.bind(this)
-      );
-    });
-
-    // Unit and format selectors
-    const weightUnit = document.getElementById('weightUnit');
-    const dateFormat = document.getElementById('dateFormat');
-    const weekStart = document.getElementById('weekStart');
-
-    if (weightUnit) {
-      weightUnit.addEventListener(
-        'change',
-        this.handleSettingChange.bind(this)
-      );
-    }
-    if (dateFormat) {
-      dateFormat.addEventListener(
-        'change',
-        this.handleSettingChange.bind(this)
-      );
-    }
-    if (weekStart) {
-      weekStart.addEventListener('change', this.handleSettingChange.bind(this));
-    }
-
-    // Goal update buttons
-    const updateGoalsBtn = document.getElementById('updateGoalsBtn');
-    const updateWeightGoalsBtn = document.getElementById(
-      'updateWeightGoalsBtn'
-    );
-
-    if (updateGoalsBtn) {
-      updateGoalsBtn.addEventListener(
-        'click',
-        this.handleUpdateDailyGoals.bind(this)
-      );
-    }
-    if (updateWeightGoalsBtn) {
-      updateWeightGoalsBtn.addEventListener(
-        'click',
-        this.handleUpdateWeightGoals.bind(this)
-      );
-    }
-
-    // Goal threshold checkboxes
-    const allowPartialSteps = document.getElementById('allowPartialSteps');
-    const allowPartialExercise = document.getElementById(
-      'allowPartialExercise'
-    );
-    const strictWellness = document.getElementById('strictWellness');
-
-    if (allowPartialSteps) {
-      allowPartialSteps.addEventListener(
-        'change',
-        this.handleSettingChange.bind(this)
-      );
-    }
-    if (allowPartialExercise) {
-      allowPartialExercise.addEventListener(
-        'change',
-        this.handleSettingChange.bind(this)
-      );
-    }
-    if (strictWellness) {
-      strictWellness.addEventListener(
-        'change',
-        this.handleSettingChange.bind(this)
-      );
-    }
-
-    // View stats button
-    const viewStatsBtn = document.getElementById('viewStatsBtn');
-    if (viewStatsBtn) {
-      viewStatsBtn.addEventListener('click', this.viewDetailedStats.bind(this));
-    }
-
-    // Data management buttons
-    const exportDataBtn = document.getElementById('exportDataBtn');
-    const exportLogsBtn = document.getElementById('exportLogsBtn');
-    const importDataBtn = document.getElementById('importDataBtn');
-
-    if (exportDataBtn) {
-      exportDataBtn.addEventListener('click', this.exportAllData.bind(this));
-    }
-    if (exportLogsBtn) {
-      exportLogsBtn.addEventListener('click', this.exportDailyLogs.bind(this));
-    }
-    if (importDataBtn) {
-      importDataBtn.addEventListener('click', this.handleImportData.bind(this));
-    }
-
-    // Streak management buttons
-    const resetStreaksBtn = document.getElementById('resetStreaksBtn');
-    const clearTodayBtn = document.getElementById('clearTodayBtn');
-    const resetProfileBtn = document.getElementById('resetProfileBtn');
-    const resetLogsBtn = document.getElementById('resetLogsBtn');
-    const resetAllDataBtn = document.getElementById('resetAllDataBtn');
-
-    if (resetStreaksBtn) {
-      resetStreaksBtn.addEventListener('click', this.resetStreaks.bind(this));
-    }
-    if (clearTodayBtn) {
-      clearTodayBtn.addEventListener('click', this.clearTodaysLog.bind(this));
-    }
-    if (resetProfileBtn) {
-      resetProfileBtn.addEventListener('click', this.resetProfile.bind(this));
-    }
-    if (resetLogsBtn) {
-      resetLogsBtn.addEventListener('click', this.resetLogs.bind(this));
-    }
-    if (resetAllDataBtn) {
-      resetAllDataBtn.addEventListener('click', this.resetAllData.bind(this));
-    }
-
-    // Import file handler
-    const importFile = document.getElementById('importFile');
-    if (importFile) {
-      importFile.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          this.importData(file);
-        }
-      });
-    }
-  }
-
-  /**
-   * Handle theme preference changes
-   */
-  handleThemePreferenceChange(e) {
-    const value = e.target.value;
-    this.settings.themePreference = value;
-    this.saveSettings();
-
-    if (value === 'system') {
-      // Follow system preference
-      const systemPrefersDark = window.matchMedia(
-        '(prefers-color-scheme: dark)'
-      ).matches;
-      const theme = systemPrefersDark ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('byf_theme', theme);
-    } else {
-      // Use selected theme
-      document.documentElement.setAttribute('data-theme', value);
-      localStorage.setItem('byf_theme', value);
-    }
-
-    this.updateThemeToggle(document.documentElement.getAttribute('data-theme'));
-  }
-
-  /**
-   * Handle general setting changes
-   */
-  handleSettingChange(e) {
-    const setting = e.target.id;
-    const value =
-      e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-
-    this.settings[setting] = value;
-    this.saveSettings();
-
-    // Apply certain settings immediately
-    if (setting === 'weekStart') {
-      // Re-render calendar if it's currently visible
-      if (this.currentTab === 'charts') {
-        this.renderStreakCalendar();
+  loadCloudConfig() {
+    try {
+      const savedConfig = localStorage.getItem('byf_cloud_config');
+      if (savedConfig) {
+        this.cloudConfig = { ...this.cloudConfig, ...JSON.parse(savedConfig) };
       }
+    } catch (error) {
+      console.error('Error loading cloud config:', error);
+      this.showError('Failed to load cloud configuration. Using defaults.');
     }
   }
 
   /**
-   * Setup system theme preference listener
+   * Export cloud data
    */
-  setupSystemThemeListener() {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  async exportCloudData() {
+    if (!this.cloudConfig.isConnected) {
+      this.showError('Not connected to cloud storage');
+      return;
+    }
 
-    const handleThemeChange = (e) => {
-      if (this.settings.themePreference === 'system') {
-        const theme = e.matches ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('byf_theme', theme);
-        this.updateThemeToggle(theme);
+    try {
+      const cloudData = await this.loadFromCloud();
+      if (cloudData) {
+        this.downloadData(cloudData, 'cloud');
+        this.showSuccess('Cloud data exported successfully!');
+      } else {
+        this.showError('No cloud data found');
       }
-    };
-
-    mediaQuery.addListener(handleThemeChange);
-
-    // Set initial theme
-    handleThemeChange(mediaQuery);
+    } catch (error) {
+      console.error('Export cloud data error:', error);
+      this.showError('Failed to export cloud data');
+    }
   }
 
   /**
-   * View detailed statistics
+   * Export local data
    */
-  viewDetailedStats() {
-    const stats = this.getAppStats();
-
-    const statsText = Object.entries(stats)
-      .map(
-        ([key, value]) =>
-          `${key}: ${
-            typeof value === 'object' ? JSON.stringify(value, null, 2) : value
-          }`
-      )
-      .join('\n');
-
-    alert(`BribeYourselfFit Detailed Statistics:\n\n${statsText}`);
-    console.table(stats);
-  }
-
-  /**
-   * Handle daily goals update
-   */
-  handleUpdateDailyGoals() {
-    const stepsInput = document.getElementById('settingsSteps');
-    const exerciseInput = document.getElementById('settingsExercise');
-    const waterInput = document.getElementById('settingsWater');
-
-    const steps = parseInt(stepsInput.value);
-    const exercise = parseInt(exerciseInput.value);
-    const water = parseFloat(waterInput.value);
-
-    // Validate inputs
-    if (isNaN(steps) || steps < 1000 || steps > 50000) {
-      this.showError('Steps goal must be between 1,000 and 50,000');
-      return;
-    }
-    if (isNaN(exercise) || exercise < 5 || exercise > 300) {
-      this.showError('Exercise goal must be between 5 and 300 minutes');
-      return;
-    }
-    if (isNaN(water) || water < 0.5 || water > 10) {
-      this.showError('Water goal must be between 0.5 and 10 liters');
-      return;
-    }
-
-    // Update goals
-    this.currentUser.dailySteps = steps;
-    this.currentUser.dailyExercise = exercise;
-    this.currentUser.dailyWater = water;
-
-    this.saveData();
-    this.updateDashboard();
-    this.showSuccess('Daily goals updated successfully!');
-  }
-
-  /**
-   * Handle weight goals update
-   */
-  handleUpdateWeightGoals() {
-    const goalWeightInput = document.getElementById('settingsGoalWeight');
-    const goalWeight = parseFloat(goalWeightInput.value);
-
-    // Validate input
-    if (isNaN(goalWeight) || goalWeight < 50 || goalWeight > 1000) {
-      this.showError('Goal weight must be between 50 and 1000 lbs');
-      return;
-    }
-
-    if (Math.abs(goalWeight - this.currentUser.startingWeight) < 1) {
-      this.showError(
-        'Goal weight should be at least 1 lb different from starting weight'
-      );
-      return;
-    }
-
-    // Update goal weight
-    this.currentUser.goalWeight = goalWeight;
-
-    // Regenerate weight milestones
-    this.initializeDefaultMilestones();
-
-    this.saveData();
-    this.updateDashboard();
-    this.showSuccess('Weight goal updated successfully!');
-  }
-
-  /**
-   * Export all data
-   */
-  exportAllData() {
-    const exportData = {
+  exportLocalData() {
+    const localData = {
       user: this.currentUser,
       dailyLogs: this.dailyLogs,
       streaks: this.streaks,
       customRewards: this.customRewards,
       achievements: this.achievements,
-      settings: this.settings,
       exportDate: new Date().toISOString(),
-      exportType: 'complete',
-      version: '1.0.0-localStorage',
+      exportType: 'local',
+      version: '1.1.0-cloud',
     };
 
-    this.downloadData(exportData, 'complete_backup');
-    this.showSuccess('Complete data exported successfully!');
-  }
-
-  /**
-   * Export daily logs only
-   */
-  exportDailyLogs() {
-    const exportData = {
-      dailyLogs: this.dailyLogs,
-      exportDate: new Date().toISOString(),
-      exportType: 'logs_only',
-      version: '1.1.0-localStorage',
-    };
-
-    this.downloadData(exportData, 'daily_logs');
-    this.showSuccess('Daily logs exported successfully!');
+    this.downloadData(localData, 'local');
+    this.showSuccess('Local data exported successfully!');
   }
 
   /**
@@ -476,7 +142,7 @@ class BribeYourselfFit {
 
     const link = document.createElement('a');
     link.href = url;
-    link.download = `BribeYourselfFit_${type}_${
+    link.download = `BribeYourselfFit_${type}_backup_${
       new Date().toISOString().split('T')[0]
     }.json`;
     document.body.appendChild(link);
@@ -486,174 +152,211 @@ class BribeYourselfFit {
   }
 
   /**
-   * Load all data from localStorage
+   * Reset local data only
    */
-  loadData() {
+  resetLocalData() {
+    if (
+      !confirm(
+        'This will delete all local data. Your cloud data will remain safe. Continue?'
+      )
+    ) {
+      return;
+    }
+
+    // Clear localStorage
+    const keysToRemove = [
+      'byf_user',
+      'byf_dailyLogs',
+      'byf_streaks',
+      'byf_customRewards',
+      'byf_achievements',
+    ];
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+    // Reset app state
+    this.currentUser = null;
+    this.dailyLogs = {};
+    this.streaks = {};
+    this.customRewards = [];
+    this.achievements = [];
+
+    this.showSuccess('Local data cleared. Restart app to reload from cloud.');
+  }
+
+  /**
+   * Reset cloud data only
+   */
+  async resetCloudData() {
+    if (!this.cloudConfig.isConnected) {
+      this.showError('Not connected to cloud storage');
+      return;
+    }
+
+    if (
+      !confirm(
+        'This will permanently delete all data from cloud storage. This cannot be undone. Continue?'
+      )
+    ) {
+      return;
+    }
+
+    if (
+      !confirm(
+        'Are you absolutely sure? This will delete ALL your fitness data from the cloud!'
+      )
+    ) {
+      return;
+    }
+
     try {
-      this.currentUser = JSON.parse(localStorage.getItem('byf_user')) || null;
-      this.dailyLogs = JSON.parse(localStorage.getItem('byf_dailyLogs')) || {};
-      this.streaks =
-        JSON.parse(localStorage.getItem('byf_streaks')) ||
-        this.initializeStreaks();
-      this.customRewards =
-        JSON.parse(localStorage.getItem('byf_customRewards')) || [];
-      this.achievements =
-        JSON.parse(localStorage.getItem('byf_achievements')) || [];
+      if (this.cloudConfig.binId) {
+        const response = await fetch(
+          `https://api.jsonbin.io/v3/b/${this.cloudConfig.binId}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'X-Master-Key': this.cloudConfig.apiKey,
+            },
+          }
+        );
 
-      this.settings =
-        JSON.parse(localStorage.getItem('byf_settings')) ||
-        this.getDefaultSettings();
-
-      // Load theme preference
-      const savedTheme = localStorage.getItem('byf_theme') || 'light';
-      document.documentElement.setAttribute('data-theme', savedTheme);
-      this.updateThemeToggle(savedTheme);
-
-      if (this.settings.themePreference === 'system') {
-        this.setupSystemThemeListener();
+        if (response.ok) {
+          this.cloudConfig.binId = null;
+          this.saveCloudConfig();
+          this.showSuccess(
+            'Cloud data deleted successfully. Local data preserved.'
+          );
+        } else {
+          throw new Error(`Failed to delete cloud data: ${response.status}`);
+        }
       }
     } catch (error) {
-      console.error('Error loading data:', error);
-      this.showError('Failed to load saved data. Starting fresh.');
+      console.error('Reset cloud data error:', error);
+      this.showError('Failed to delete cloud data');
     }
   }
 
   /**
-   * Save all data to localStorage
+   * Reset all data (local and cloud)
    */
-  saveData() {
+  async resetAllData() {
+    if (
+      !confirm(
+        'This will delete ALL data from both local storage and cloud. This cannot be undone. Continue?'
+      )
+    ) {
+      return;
+    }
+
+    if (
+      !confirm(
+        'Final warning: This will permanently delete EVERYTHING. Are you sure?'
+      )
+    ) {
+      return;
+    }
+
     try {
-      localStorage.setItem('byf_user', JSON.stringify(this.currentUser));
-      localStorage.setItem('byf_dailyLogs', JSON.stringify(this.dailyLogs));
-      localStorage.setItem('byf_streaks', JSON.stringify(this.streaks));
-      localStorage.setItem(
+      // Delete cloud data first
+      if (this.cloudConfig.isConnected && this.cloudConfig.binId) {
+        await fetch(`https://api.jsonbin.io/v3/b/${this.cloudConfig.binId}`, {
+          method: 'DELETE',
+          headers: {
+            'X-Master-Key': this.cloudConfig.apiKey,
+          },
+        });
+      }
+
+      // Clear all localStorage
+      const keysToRemove = [
+        'byf_user',
+        'byf_dailyLogs',
+        'byf_streaks',
         'byf_customRewards',
-        JSON.stringify(this.customRewards)
-      );
-      localStorage.setItem(
         'byf_achievements',
-        JSON.stringify(this.achievements)
+        'byf_cloud_config',
+        'byf_auto_sync',
+        'byf_sync_notifications',
+      ];
+      keysToRemove.forEach((key) => localStorage.removeItem(key));
+
+      this.showSuccess(
+        'All data has been reset. Page will reload in 3 seconds...'
       );
+
+      // Reload page after delay
+      setTimeout(() => {
+        location.reload();
+      }, 3000);
     } catch (error) {
-      console.error('Error saving data:', error);
-      this.showError('Failed to save data. Please try again.');
+      console.error('Reset all data error:', error);
+      this.showError('Failed to reset all data');
     }
   }
 
   /**
-   * Get default settings
+   * Handle API key update
    */
-  getDefaultSettings() {
-    return {
-      themePreference: 'system',
-      weightUnit: 'lbs',
-      dateFormat: 'US',
-      weekStart: 'sunday',
-      allowPartialSteps: false,
-      allowPartialExercise: false,
-      strictWellness: false,
-    };
-  }
+  async handleUpdateApiKey() {
+    const newApiKey = prompt('Enter your new JSONBin.io API key:');
+    if (!newApiKey) return;
 
-  /**
-   * Save settings to localStorage
-   */
-  saveSettings() {
-    try {
-      localStorage.setItem('byf_settings', JSON.stringify(this.settings));
-    } catch (error) {
-      console.error('Error saving settings:', error);
+    const oldApiKey = this.cloudConfig.apiKey;
+    this.cloudConfig.apiKey = newApiKey.trim();
+
+    const success = await this.testCloudConnection();
+
+    if (success) {
+      this.saveCloudConfig();
+      this.showSuccess('API key updated successfully!');
+      this.updateSettingsDisplay();
+    } else {
+      this.cloudConfig.apiKey = oldApiKey;
+      this.showError('Invalid API key. Previous key restored.');
     }
   }
 
   /**
-   * Load settings tab content
-   */
-  loadSettingsTab() {
-    this.updateSettingsDisplay();
-  }
-
-  /**
-   * Update settings display with current values
+   * Update settings display
    */
   updateSettingsDisplay() {
-    // Update theme preference radio buttons
-    const themePreference = this.settings.themePreference || 'system';
-    const themeRadio = document.querySelector(
-      `input[value="${themePreference}"]`
+    // Update connection info
+    const connectionStatusEl = document.getElementById(
+      'settingsConnectionStatus'
     );
-    if (themeRadio) {
-      themeRadio.checked = true;
+    if (connectionStatusEl) {
+      connectionStatusEl.textContent = this.cloudConfig.isConnected
+        ? '✅ Connected'
+        : '❌ Disconnected';
     }
 
-    // Update unit and format selectors
-    const weightUnit = document.getElementById('weightUnit');
-    const dateFormat = document.getElementById('dateFormat');
-    const weekStart = document.getElementById('weekStart');
-
-    if (weightUnit && this.settings.weightUnit) {
-      weightUnit.value = this.settings.weightUnit;
-    }
-    if (dateFormat && this.settings.dateFormat) {
-      dateFormat.value = this.settings.dateFormat;
-    }
-    if (weekStart && this.settings.weekStart) {
-      weekStart.value = this.settings.weekStart;
+    const lastSyncEl = document.getElementById('lastSyncTime');
+    if (lastSyncEl) {
+      if (this.cloudConfig.lastSync) {
+        const lastSync = new Date(this.cloudConfig.lastSync);
+        lastSyncEl.textContent = lastSync.toLocaleString();
+      } else {
+        lastSyncEl.textContent = 'Never';
+      }
     }
 
-    // Update daily goals inputs
-    if (this.currentUser) {
-      const settingsSteps = document.getElementById('settingsSteps');
-      const settingsExercise = document.getElementById('settingsExercise');
-      const settingsWater = document.getElementById('settingsWater');
-      const settingsStartingWeight = document.getElementById(
-        'settingsStartingWeight'
-      );
-      const settingsGoalWeight = document.getElementById('settingsGoalWeight');
-
-      if (settingsSteps) settingsSteps.value = this.currentUser.dailySteps;
-      if (settingsExercise)
-        settingsExercise.value = this.currentUser.dailyExercise;
-      if (settingsWater) settingsWater.value = this.currentUser.dailyWater;
-      if (settingsStartingWeight)
-        settingsStartingWeight.value = this.currentUser.startingWeight;
-      if (settingsGoalWeight)
-        settingsGoalWeight.value = this.currentUser.goalWeight;
+    // Update API key display with masked value
+    const settingsApiKeyEl = document.getElementById('settingsApiKey');
+    if (settingsApiKeyEl && this.cloudConfig.apiKey) {
+      const maskedKey =
+        this.cloudConfig.apiKey.substring(0, 8) + '••••••••••••';
+      settingsApiKeyEl.placeholder = maskedKey;
     }
 
-    // Update goal threshold checkboxes
-    const allowPartialSteps = document.getElementById('allowPartialSteps');
-    const allowPartialExercise = document.getElementById(
-      'allowPartialExercise'
-    );
-    const strictWellness = document.getElementById('strictWellness');
-
-    if (allowPartialSteps)
-      allowPartialSteps.checked = this.settings.allowPartialSteps || false;
-    if (allowPartialExercise)
-      allowPartialExercise.checked =
-        this.settings.allowPartialExercise || false;
-    if (strictWellness)
-      strictWellness.checked = this.settings.strictWellness || false;
-
-    // Update app info
-    this.updateAppInfo();
-  }
-
-  /**
-   * Update app information display
-   */
-  updateAppInfo() {
+    // Update data stats
     const totalEntriesEl = document.getElementById('totalDataEntries');
-    const storageUsedEl = document.getElementById('storageUsed');
-    const profileCreatedEl = document.getElementById('profileCreated');
-
     if (totalEntriesEl) {
       totalEntriesEl.textContent = Object.keys(
         this.dailyLogs
       ).length.toString();
     }
 
+    const storageUsedEl = document.getElementById('storageUsed');
     if (storageUsedEl) {
       const dataSize = JSON.stringify({
         user: this.currentUser,
@@ -661,127 +364,43 @@ class BribeYourselfFit {
         streaks: this.streaks,
         customRewards: this.customRewards,
         achievements: this.achievements,
-        settings: this.settings,
       }).length;
       storageUsedEl.textContent = `~${Math.round(dataSize / 1024)} KB`;
     }
 
-    if (profileCreatedEl && this.currentUser && this.currentUser.setupDate) {
-      const setupDate = new Date(this.currentUser.setupDate);
-      profileCreatedEl.textContent = setupDate.toLocaleDateString();
+    // Update preferences
+    const autoSyncCheckbox = document.getElementById('autoSyncEnabled');
+    if (autoSyncCheckbox) {
+      autoSyncCheckbox.checked = this.autoSyncEnabled;
     }
+
+    const syncNotificationsCheckbox =
+      document.getElementById('syncNotifications');
+    if (syncNotificationsCheckbox) {
+      syncNotificationsCheckbox.checked = this.syncNotifications;
+    }
+
+    this.updatePendingSyncCount();
   }
 
   /**
-   * Initialize streak counters
+   * View app statistics
    */
-  initializeStreaks() {
-    return {
-      overall: 0,
-      steps: 0,
-      exercise: 0,
-      water: 0,
-      wellness: 0,
-      lastLogDate: null,
-      weeklyWeight: false,
-      lastWeightDate: null,
-    };
-  }
+  viewAppStats() {
+    const stats = this.getAppStats();
 
-  /**
-   * Handle user profile setup
-   */
-  handleSetup(e) {
-    e.preventDefault();
-
-    const formData = new FormData(e.target);
-
-    // Get raw values from form
-    const rawValues = {
-      startingWeight: formData.get('startingWeight'),
-      goalWeight: formData.get('goalWeight'),
-      dailySteps: formData.get('dailySteps'),
-      dailyExercise: formData.get('dailyExercise'),
-      dailyWater: formData.get('dailyWater'),
-    };
-
-    // Debug: Log raw form values
-    console.log('Raw form values:', rawValues);
-
-    // Parse with proper validation
-    const startingWeight = parseFloat(rawValues.startingWeight);
-    const goalWeight = parseFloat(rawValues.goalWeight);
-    const dailySteps = parseInt(rawValues.dailySteps);
-    const dailyExercise = parseInt(rawValues.dailyExercise);
-    const dailyWater = parseFloat(rawValues.dailyWater);
-
-    // Debug: Log parsed values
-    console.log('Parsed values:', {
-      startingWeight,
-      goalWeight,
-      dailySteps,
-      dailyExercise,
-      dailyWater,
-    });
-
-    // Check for NaN values
-    if (
-      isNaN(startingWeight) ||
-      isNaN(goalWeight) ||
-      isNaN(dailySteps) ||
-      isNaN(dailyExercise) ||
-      isNaN(dailyWater)
-    ) {
-      console.error('Form parsing failed - NaN values detected:', {
-        startingWeight,
-        goalWeight,
-        dailySteps,
-        dailyExercise,
-        dailyWater,
-      });
-      this.showError(
-        'Invalid form data. Please check all fields have valid numbers.'
-      );
-      return;
-    }
-
-    // Validate input
-    if (
-      !this.validateSetupData(
-        startingWeight,
-        goalWeight,
-        dailySteps,
-        dailyExercise,
-        dailyWater
+    const statsText = Object.entries(stats)
+      .map(
+        ([key, value]) =>
+          `${key}: ${
+            typeof value === 'object' ? JSON.stringify(value, null, 2) : value
+          }`
       )
-    ) {
-      return;
-    }
+      .join('\n');
 
-    // Create user profile
-    this.currentUser = {
-      startingWeight,
-      goalWeight,
-      currentWeight: startingWeight,
-      dailySteps,
-      dailyExercise,
-      dailyWater,
-      setupDate: new Date().toISOString(),
-      lastWeightUpdate: new Date().toISOString(),
-    };
-
-    // Initialize streaks
-    this.streaks = this.initializeStreaks();
-
-    // Save and show app
-    this.saveData();
-    this.showAppScreen();
-    this.updateDashboard();
-    this.initializeDefaultMilestones();
-
-    this.showSuccess(
-      'Profile created successfully! Start logging your fitness journey.'
-    );
+    // Create a modal or use alert for now
+    alert(`BribeYourselfFit Cloud Statistics:\n\n${statsText}`);
+    console.table(stats);
   }
 
   /**
@@ -794,7 +413,6 @@ class BribeYourselfFit {
     dailyExercise,
     dailyWater
   ) {
-    // First check for NaN values
     if (
       isNaN(startingWeight) ||
       isNaN(goalWeight) ||
@@ -830,139 +448,6 @@ class BribeYourselfFit {
       return false;
     }
     return true;
-  }
-
-  /**
-   * Handle daily log submission - FIXED VERSION
-   */
-  async handleDailyLog(e) {
-    e.preventDefault();
-
-    this.debugFormSave(); // Add this line for debugging
-
-    const today = this.currentDate;
-
-    // Get form values - CORRECTED VERSION (same fix as before)
-    const weightInput = document.getElementById('todayWeight');
-    const stepsInput = document.getElementById('todaySteps');
-    const exerciseInput = document.getElementById('todayExerciseMinutes');
-    const waterInput = document.getElementById('todayWater');
-
-    // Check if inputs exist and have values
-    const weight =
-      weightInput && weightInput.value !== ''
-        ? parseFloat(weightInput.value)
-        : null;
-    const steps =
-      stepsInput && stepsInput.value !== '' ? parseInt(stepsInput.value) : 0;
-    const exerciseMinutes =
-      exerciseInput && exerciseInput.value !== ''
-        ? parseInt(exerciseInput.value)
-        : 0;
-    const water =
-      waterInput && waterInput.value !== '' ? parseFloat(waterInput.value) : 0;
-
-    // Debug what we're actually getting (you can remove these console.log lines later)
-    console.log('Input elements:', {
-      weightInput,
-      stepsInput,
-      exerciseInput,
-      waterInput,
-    });
-    console.log('Raw values:', {
-      weight: weightInput?.value,
-      steps: stepsInput?.value,
-      exercise: exerciseInput?.value,
-      water: waterInput?.value,
-    });
-    console.log('Parsed values:', { weight, steps, exerciseMinutes, water });
-
-    // Get selected exercise types
-    const exerciseTypes = Array.from(
-      document.querySelectorAll('.exercise-checkbox:checked')
-    ).map((cb) => cb.value);
-
-    // Get wellness score
-    const wellnessItems = Array.from(
-      document.querySelectorAll('.wellness-checkbox:checked')
-    ).map((cb) => cb.dataset.wellness);
-    const wellnessScore = wellnessItems.length;
-
-    // Debug log to see what we're getting
-    console.log('Form data collected:', {
-      weight,
-      steps,
-      exerciseMinutes,
-      water,
-      exerciseTypes,
-      wellnessScore,
-    });
-
-    // Validate data
-    if (
-      !(await this.validateDailyLog(
-        weight,
-        steps,
-        exerciseMinutes,
-        water,
-        exerciseTypes
-      ))
-    ) {
-      return;
-    }
-
-    // Create daily log entry
-    const logEntry = {
-      date: today,
-      weight,
-      steps,
-      exerciseMinutes,
-      exerciseTypes,
-      water,
-      wellnessScore,
-      wellnessItems,
-      timestamp: new Date().toISOString(),
-    };
-
-    console.log('Saving log entry:', logEntry); // Debug log
-
-    // Save log entry
-    this.dailyLogs[today] = logEntry;
-
-    // Update user's current weight if provided
-    if (weight) {
-      this.currentUser.currentWeight = weight;
-      this.currentUser.lastWeightUpdate = new Date().toISOString();
-    }
-
-    // Update streaks
-    this.updateStreaks(logEntry);
-
-    // Save all data
-    this.saveData();
-
-    // Update dashboard
-    this.updateDashboard();
-
-    // Check for achievements
-    this.checkAchievements();
-
-    // Performance check for large datasets
-    const logCount = Object.keys(this.dailyLogs).length;
-    if (logCount > 365) {
-      // More than 1 year of data
-      console.log(`Performance: Managing ${logCount} daily logs`);
-      // Optionally compress old data or suggest export
-      if (logCount > 730 && logCount % 30 === 0) {
-        // Every 30 entries after 2 years
-        this.showSuccess(
-          `Daily log saved! You have ${logCount} entries. Consider exporting older data for better performance.`
-        );
-        return;
-      }
-    }
-
-    this.showSuccess('Daily log saved successfully!');
   }
 
   /**
@@ -1026,6 +511,22 @@ class BribeYourselfFit {
         resolve(false);
       }
     });
+  }
+
+  /**
+   * Initialize streak counters
+   */
+  initializeStreaks() {
+    return {
+      overall: 0,
+      steps: 0,
+      exercise: 0,
+      water: 0,
+      wellness: 0,
+      lastLogDate: null,
+      weeklyWeight: false,
+      lastWeightDate: null,
+    };
   }
 
   /**
@@ -1110,7 +611,7 @@ class BribeYourselfFit {
   getWeekStart(dateString) {
     const date = new Date(dateString);
     const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
     const weekStart = new Date(date.setDate(diff));
     return weekStart.toISOString().split('T')[0];
   }
@@ -1122,6 +623,1385 @@ class BribeYourselfFit {
     const date = new Date(dateString);
     date.setDate(date.getDate() + offset);
     return date.toISOString().split('T')[0];
+  }
+
+  /**
+   * Switch between tabs
+   */
+  switchTab(tabName) {
+    this.currentTab = tabName;
+
+    // Update tab buttons
+    document.querySelectorAll('.tab-btn').forEach((btn) => {
+      if (btn.dataset.tab === tabName) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach((content) => {
+      if (content.id === `${tabName}Tab`) {
+        content.classList.remove('hidden');
+        content.classList.add('active');
+      } else {
+        content.classList.add('hidden');
+        content.classList.remove('active');
+      }
+    });
+
+    // Load tab-specific content
+    try {
+      if (tabName === 'charts') {
+        this.loadChartsTab();
+      } else if (tabName === 'rewards') {
+        this.loadRewardsTab();
+      } else if (tabName === 'settings') {
+        this.loadSettingsTab();
+      }
+    } catch (error) {
+      console.error(`Error loading ${tabName} tab:`, error);
+    }
+  }
+
+  /**
+   * Save cloud configuration to localStorage
+   */
+  saveCloudConfig() {
+    try {
+      localStorage.setItem(
+        'byf_cloud_config',
+        JSON.stringify(this.cloudConfig)
+      );
+    } catch (error) {
+      console.error('Error saving cloud config:', error);
+    }
+  }
+
+  /**
+   * Initialize cloud sync after app load
+   */
+  async initializeCloudSync() {
+    if (this.cloudConfig.apiKey) {
+      await this.testCloudConnection();
+      if (this.cloudConfig.isConnected) {
+        await this.performInitialSync();
+        this.startAutoSync();
+      }
+    }
+    this.updateSyncStatus();
+  }
+
+  /**
+   * Test connection to JSONBin.io
+   */
+  async testCloudConnection() {
+    if (!this.cloudConfig.apiKey) {
+      this.updateConnectionStatus('error', 'No API key configured');
+      return false;
+    }
+
+    try {
+      this.updateConnectionStatus('testing', 'Testing connection...');
+
+      // Test API key validity by trying to create a test bin
+      const response = await fetch('https://api.jsonbin.io/v3/b', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': this.cloudConfig.apiKey,
+        },
+        body: JSON.stringify({
+          test: true,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // If this is a new setup, use this bin for storage
+        if (!this.cloudConfig.binId) {
+          this.cloudConfig.binId = data.metadata.id;
+          this.saveCloudConfig();
+        } else {
+          // Clean up test bin if we already have a storage bin
+          await this.deleteTestBin(data.metadata.id);
+        }
+
+        this.cloudConfig.isConnected = true;
+        this.cloudConfig.retryCount = 0;
+        this.updateConnectionStatus('connected', 'Connected to cloud storage');
+        return true;
+      } else {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Cloud connection test failed:', error);
+      this.cloudConfig.isConnected = false;
+      this.updateConnectionStatus(
+        'error',
+        `Connection failed: ${error.message}`
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Validate API key format before testing connection
+   */
+  validateApiKeyFormat(apiKey) {
+    if (!apiKey || apiKey.trim().length === 0) {
+      return { valid: false, message: 'API key cannot be empty' };
+    }
+
+    // JSONBin.io API keys typically start with $2a$ (bcrypt format)
+    if (!apiKey.startsWith('$2a$') && !apiKey.startsWith('$2b$')) {
+      return {
+        valid: false,
+        message:
+          'API key format appears incorrect. JSONBin.io keys typically start with $2a$ or $2b$',
+      };
+    }
+
+    if (apiKey.length < 50) {
+      return {
+        valid: false,
+        message:
+          'API key appears too short. Please verify you copied the complete key.',
+      };
+    }
+
+    return { valid: true, message: 'API key format looks correct' };
+  }
+
+  /**
+   * Delete test bin (cleanup)
+   */
+  async deleteTestBin(binId) {
+    try {
+      await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Master-Key': this.cloudConfig.apiKey,
+        },
+      });
+    } catch (error) {
+      console.warn('Failed to delete test bin:', error);
+    }
+  }
+
+  /**
+   * Perform initial sync when app loads
+   */
+  async performInitialSync() {
+    if (!this.cloudConfig.isConnected || !this.cloudConfig.binId) return;
+
+    try {
+      // Try to load data from cloud
+      const cloudData = await this.loadFromCloud();
+
+      if (cloudData) {
+        // Check if cloud data is newer than local data
+        const cloudTimestamp = new Date(cloudData.lastSync || 0);
+        const localTimestamp = new Date(this.cloudConfig.lastSync || 0);
+
+        if (cloudTimestamp > localTimestamp) {
+          // Cloud data is newer, use it
+          this.mergeCloudData(cloudData);
+          this.showSuccess('💾 Synced data from cloud storage');
+        } else {
+          // Local data is newer or same, push to cloud
+          await this.saveToCloud();
+        }
+      } else {
+        // No cloud data exists, push local data
+        await this.saveToCloud();
+      }
+    } catch (error) {
+      console.error('Initial sync failed:', error);
+      this.showError('Initial sync failed, using local data');
+    }
+  }
+
+  /**
+   * Load data from JSONBin.io
+   */
+  async loadFromCloud() {
+    if (!this.cloudConfig.binId || !this.cloudConfig.apiKey) return null;
+
+    try {
+      const response = await fetch(
+        `https://api.jsonbin.io/v3/b/${this.cloudConfig.binId}/latest`,
+        {
+          headers: {
+            'X-Master-Key': this.cloudConfig.apiKey,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.record;
+      } else if (response.status === 404) {
+        // Bin doesn't exist yet, that's okay
+        return null;
+      } else {
+        throw new Error(`Failed to load from cloud: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error loading from cloud:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Save data to JSONBin.io
+   */
+  async saveToCloud() {
+    if (!this.cloudConfig.isConnected || this.cloudConfig.syncInProgress)
+      return;
+
+    try {
+      this.cloudConfig.syncInProgress = true;
+      this.updateSyncStatus('syncing');
+
+      const dataToSync = {
+        user: this.currentUser,
+        dailyLogs: this.dailyLogs,
+        streaks: this.streaks,
+        customRewards: this.customRewards,
+        achievements: this.achievements,
+        lastSync: new Date().toISOString(),
+        version: '1.0.0-cloud',
+      };
+
+      const url = this.cloudConfig.binId
+        ? `https://api.jsonbin.io/v3/b/${this.cloudConfig.binId}`
+        : 'https://api.jsonbin.io/v3/b';
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': this.cloudConfig.apiKey,
+        },
+        body: JSON.stringify(dataToSync),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+
+        // Store bin ID if this was the first save
+        if (!this.cloudConfig.binId) {
+          this.cloudConfig.binId = result.metadata.id;
+        }
+
+        this.cloudConfig.lastSync = new Date().toISOString();
+        this.cloudConfig.retryCount = 0;
+        this.saveCloudConfig();
+
+        this.updateSyncStatus('synced');
+        this.processSyncQueue();
+
+        if (this.syncNotifications) {
+          this.showSuccess('☁️ Data synced to cloud', 2000);
+        }
+
+        return true;
+      } else {
+        throw new Error(
+          `Sync failed: ${response.status} ${response.statusText}`
+        );
+      }
+    } catch (error) {
+      console.error('Error saving to cloud:', error);
+      this.handleSyncError(error);
+      return false;
+    } finally {
+      this.cloudConfig.syncInProgress = false;
+    }
+  }
+
+  /**
+   * Handle sync errors with progressive fallback and recovery
+   */
+  handleSyncError(error) {
+    this.cloudConfig.retryCount++;
+
+    if (this.cloudConfig.retryCount <= this.cloudConfig.maxRetries) {
+      // Schedule retry with exponential backoff
+      const retryDelay = Math.min(
+        1000 * Math.pow(2, this.cloudConfig.retryCount),
+        30000
+      );
+
+      this.updateSyncStatus(
+        'error',
+        `Retrying in ${Math.round(retryDelay / 1000)}s... (${
+          this.cloudConfig.retryCount
+        }/${this.cloudConfig.maxRetries})`
+      );
+
+      setTimeout(() => {
+        if (this.autoSyncEnabled) {
+          this.saveToCloud();
+        }
+      }, retryDelay);
+    } else {
+      // Max retries reached, fall back to local storage
+      this.updateSyncStatus(
+        'offline',
+        'Offline mode - will sync when reconnected'
+      );
+
+      // Reset retry count for next connection attempt
+      this.cloudConfig.retryCount = 0;
+
+      if (this.syncNotifications) {
+        this.showError(
+          'Sync failed after multiple attempts. Data saved locally and will sync when connection is restored.'
+        );
+      }
+    }
+  }
+
+  /**
+   * Attempt to recover sync connection
+   */
+  async recoverSyncConnection() {
+    if (this.cloudConfig.retryCount >= this.cloudConfig.maxRetries) {
+      console.log('Attempting to recover sync connection...');
+
+      const connected = await this.testCloudConnection();
+      if (connected && this.syncQueue.length > 0) {
+        this.showSuccess('🔄 Connection restored! Syncing pending changes...');
+        await this.saveToCloud();
+      }
+    }
+  }
+
+  /**
+   * Check connection health periodically
+   */
+  async checkConnectionHealth() {
+    if (!this.cloudConfig.apiKey || !navigator.onLine) return false;
+
+    try {
+      // Simple connectivity test
+      const response = await fetch('https://api.jsonbin.io/v3/b', {
+        method: 'HEAD',
+        headers: { 'X-Master-Key': this.cloudConfig.apiKey },
+      });
+
+      const isHealthy = response.status !== 0;
+
+      if (isHealthy && !this.cloudConfig.isConnected) {
+        // Connection restored
+        this.cloudConfig.isConnected = true;
+        this.updateSyncStatus('connected', 'Connection restored');
+
+        if (this.syncQueue.length > 0) {
+          await this.saveToCloud();
+        }
+      } else if (!isHealthy && this.cloudConfig.isConnected) {
+        // Connection lost
+        this.cloudConfig.isConnected = false;
+        this.updateSyncStatus('offline', 'Connection lost');
+      }
+
+      return isHealthy;
+    } catch (error) {
+      console.warn('Connection health check failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Merge cloud data with local data
+   */
+  mergeCloudData(cloudData) {
+    if (cloudData.user) this.currentUser = cloudData.user;
+    if (cloudData.dailyLogs) this.dailyLogs = cloudData.dailyLogs;
+    if (cloudData.streaks) this.streaks = cloudData.streaks;
+    if (cloudData.customRewards) this.customRewards = cloudData.customRewards;
+    if (cloudData.achievements) this.achievements = cloudData.achievements;
+
+    // Save merged data locally
+    this.saveLocalData();
+    this.updateDashboard();
+  }
+
+  /**
+   * Add item to sync queue
+   */
+  addToSyncQueue(action, data) {
+    this.syncQueue.push({
+      action,
+      data,
+      timestamp: new Date().toISOString(),
+      synced: false,
+    });
+  }
+
+  /**
+   * Process sync queue
+   */
+  processSyncQueue() {
+    // Remove synced items and items older than 24 hours
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    this.syncQueue = this.syncQueue.filter((item) => {
+      return !item.synced && item.timestamp > oneDayAgo;
+    });
+
+    this.updatePendingSyncCount();
+
+    // Log if we're dropping old items
+    const totalItems = this.syncQueue.length;
+    if (totalItems > 100) {
+      console.warn(
+        `Large sync queue detected: ${totalItems} items. Consider forcing a sync.`
+      );
+    }
+  }
+
+  /**
+   * Start automatic sync interval
+   */
+  startAutoSync() {
+    if (this.autoSyncInterval) {
+      clearInterval(this.autoSyncInterval);
+    }
+
+    // Sync every 5 minutes if auto sync is enabled
+    this.autoSyncInterval = setInterval(() => {
+      if (
+        this.autoSyncEnabled &&
+        this.cloudConfig.isConnected &&
+        this.syncQueue.length > 0
+      ) {
+        this.saveToCloud();
+      }
+    }, 5 * 60 * 1000);
+  }
+
+  /**
+   * Force immediate sync
+   */
+  async forceSync() {
+    if (!this.cloudConfig.isConnected) {
+      const connected = await this.testCloudConnection();
+      if (!connected) {
+        this.showError('Cannot sync - connection to cloud storage failed');
+        return;
+      }
+    }
+
+    const success = await this.saveToCloud();
+    if (success) {
+      this.showSuccess('✅ Force sync completed successfully');
+    } else {
+      this.showError('❌ Force sync failed');
+    }
+  }
+
+  /**
+   * Update sync status indicators
+   */
+  updateSyncStatus(status = null, message = null) {
+    const syncStatusEl = document.getElementById('syncStatus');
+    const dashboardSyncEl = document.getElementById('dashboardSync');
+
+    if (!status) {
+      // Determine status automatically
+      if (!this.cloudConfig.apiKey) {
+        status = 'offline';
+        message = 'Not Configured';
+      } else if (!this.cloudConfig.isConnected) {
+        status = 'error';
+        message = 'Connection Failed';
+      } else if (this.cloudConfig.syncInProgress) {
+        status = 'syncing';
+        message = 'Syncing...';
+      } else {
+        status = 'synced';
+        message = 'Synced';
+      }
+    }
+
+    // Update header sync status
+    if (syncStatusEl) {
+      syncStatusEl.className = `sync-status ${status}`;
+
+      const iconEl = syncStatusEl.querySelector('.sync-icon');
+      const textEl = syncStatusEl.querySelector('.sync-text');
+
+      if (iconEl && textEl) {
+        switch (status) {
+          case 'connected':
+          case 'synced':
+            iconEl.textContent = '✅';
+            textEl.textContent = message || 'Connected';
+            break;
+          case 'syncing':
+            iconEl.textContent = '🔄';
+            textEl.textContent = message || 'Syncing...';
+            break;
+          case 'error':
+            iconEl.textContent = '❌';
+            textEl.textContent = message || 'Error';
+            break;
+          case 'offline':
+            iconEl.textContent = '⚠️';
+            textEl.textContent = message || 'Offline';
+            break;
+          default:
+            iconEl.textContent = '⚠️';
+            textEl.textContent = message || 'Unknown';
+        }
+      }
+    }
+
+    // Update dashboard sync indicator
+    if (dashboardSyncEl) {
+      const dotEl = dashboardSyncEl.querySelector('.sync-dot');
+      const labelEl = dashboardSyncEl.querySelector('.sync-label');
+
+      if (dotEl && labelEl) {
+        dotEl.className = `sync-dot ${status}`;
+        labelEl.textContent =
+          message || status.charAt(0).toUpperCase() + status.slice(1);
+      }
+    }
+  }
+
+  /**
+   * Update connection status in setup/settings
+   */
+  updateConnectionStatus(status, message) {
+    const statusEl = document.getElementById('connectionStatus');
+    if (statusEl) {
+      statusEl.className = `connection-status ${status}`;
+      statusEl.textContent = message;
+      statusEl.classList.remove('hidden');
+    }
+  }
+
+  /**
+   * Update pending sync count with visual indicator
+   */
+  updatePendingSyncCount() {
+    const pendingSyncsEl = document.getElementById('pendingSyncs');
+    if (pendingSyncsEl) {
+      const pendingCount = this.syncQueue.filter((item) => !item.synced).length;
+      pendingSyncsEl.textContent = pendingCount.toString();
+
+      // Add visual indicator if there are pending syncs
+      if (pendingCount > 0) {
+        pendingSyncsEl.style.color = 'var(--accent-warning)';
+        pendingSyncsEl.style.fontWeight = 'bold';
+      } else {
+        pendingSyncsEl.style.color = 'var(--text-secondary)';
+        pendingSyncsEl.style.fontWeight = 'normal';
+      }
+    }
+
+    // Update sync status to show pending items
+    if (
+      this.syncQueue.filter((item) => !item.synced).length > 0 &&
+      this.cloudConfig.isConnected
+    ) {
+      this.updateSyncStatus(
+        'warning',
+        `${
+          this.syncQueue.filter((item) => !item.synced).length
+        } pending sync(s)`
+      );
+    }
+  }
+
+  /**
+   * Set up all event listeners for the application
+   */
+  setupEventListeners() {
+    // Theme toggle
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+      themeToggle.addEventListener('click', this.toggleTheme.bind(this));
+    }
+
+    // Cloud setup form
+    const cloudSetupForm = document.getElementById('cloudSetupForm');
+    if (cloudSetupForm) {
+      const testConnectionBtn = document.getElementById('testConnection');
+      if (testConnectionBtn) {
+        testConnectionBtn.addEventListener(
+          'click',
+          this.handleTestConnection.bind(this)
+        );
+      }
+
+      const toggleApiKeyBtn = document.getElementById('toggleApiKey');
+      if (toggleApiKeyBtn) {
+        toggleApiKeyBtn.addEventListener('click', () =>
+          this.togglePasswordVisibility('jsonbinApiKey')
+        );
+      }
+    }
+
+    // Setup form
+    const setupForm = document.getElementById('setupForm');
+    if (setupForm) {
+      setupForm.addEventListener('submit', this.handleSetup.bind(this));
+    }
+
+    // Daily log form
+    const dailyLogForm = document.getElementById('dailyLogForm');
+    if (dailyLogForm) {
+      dailyLogForm.addEventListener('submit', this.handleDailyLog.bind(this));
+    }
+
+    // Wellness checkboxes
+    const wellnessCheckboxes = document.querySelectorAll('.wellness-checkbox');
+    wellnessCheckboxes.forEach((checkbox) => {
+      checkbox.addEventListener('change', this.updateWellnessScore.bind(this));
+    });
+
+    // Exercise type checkboxes
+    const exerciseCheckboxes = document.querySelectorAll('.exercise-checkbox');
+    exerciseCheckboxes.forEach((checkbox) => {
+      checkbox.addEventListener(
+        'change',
+        this.updateExerciseSelection.bind(this)
+      );
+    });
+
+    // Tab navigation
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        this.switchTab(e.target.dataset.tab);
+      });
+    });
+
+    // Chart period controls
+    const chartBtns = document.querySelectorAll('.chart-btn');
+    chartBtns.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        this.setChartPeriod(parseInt(e.target.dataset.period) || 'all');
+      });
+    });
+
+    // Reward form
+    const rewardForm = document.getElementById('rewardForm');
+    if (rewardForm) {
+      rewardForm.addEventListener('submit', this.handleCustomReward.bind(this));
+    }
+
+    // Reward type selector
+    const rewardType = document.getElementById('rewardType');
+    if (rewardType) {
+      rewardType.addEventListener(
+        'change',
+        this.updateRewardCriteria.bind(this)
+      );
+    }
+
+    // Calendar navigation
+    const prevMonth = document.getElementById('prevMonth');
+    const nextMonth = document.getElementById('nextMonth');
+    if (prevMonth)
+      prevMonth.addEventListener('click', () => this.navigateCalendar(-1));
+    if (nextMonth)
+      nextMonth.addEventListener('click', () => this.navigateCalendar(1));
+
+    // Settings event listeners
+    this.setupSettingsEventListeners();
+  }
+
+  /**
+   * Setup settings-specific event listeners
+   */
+  setupSettingsEventListeners() {
+    // Force sync button
+    const forceSyncBtn = document.getElementById('forceSyncBtn');
+    if (forceSyncBtn) {
+      forceSyncBtn.addEventListener('click', this.forceSync.bind(this));
+    }
+
+    // Test connection button in settings
+    const testConnectionBtn = document.getElementById('testConnectionBtn');
+    if (testConnectionBtn) {
+      testConnectionBtn.addEventListener(
+        'click',
+        this.handleTestConnection.bind(this)
+      );
+    }
+
+    // Update API key button
+    const updateApiKeyBtn = document.getElementById('updateApiKeyBtn');
+    if (updateApiKeyBtn) {
+      updateApiKeyBtn.addEventListener(
+        'click',
+        this.handleUpdateApiKey.bind(this)
+      );
+    }
+
+    // Toggle API key visibility in settings
+    const toggleSettingsApiKey = document.getElementById(
+      'toggleSettingsApiKey'
+    );
+    if (toggleSettingsApiKey) {
+      toggleSettingsApiKey.addEventListener('click', () =>
+        this.togglePasswordVisibility('settingsApiKey')
+      );
+    }
+
+    // Auto sync toggle
+    const autoSyncEnabled = document.getElementById('autoSyncEnabled');
+    if (autoSyncEnabled) {
+      autoSyncEnabled.addEventListener('change', (e) => {
+        this.autoSyncEnabled = e.target.checked;
+        localStorage.setItem('byf_auto_sync', this.autoSyncEnabled.toString());
+        if (this.autoSyncEnabled) {
+          this.startAutoSync();
+        } else if (this.autoSyncInterval) {
+          clearInterval(this.autoSyncInterval);
+        }
+      });
+    }
+
+    // Sync notifications toggle
+    const syncNotifications = document.getElementById('syncNotifications');
+    if (syncNotifications) {
+      syncNotifications.addEventListener('change', (e) => {
+        this.syncNotifications = e.target.checked;
+        localStorage.setItem(
+          'byf_sync_notifications',
+          this.syncNotifications.toString()
+        );
+      });
+    }
+
+    // Export buttons
+    const exportCloudBtn = document.getElementById('exportCloudDataBtn');
+    if (exportCloudBtn) {
+      exportCloudBtn.addEventListener('click', this.exportCloudData.bind(this));
+    }
+
+    const exportLocalBtn = document.getElementById('exportLocalDataBtn');
+    if (exportLocalBtn) {
+      exportLocalBtn.addEventListener('click', this.exportLocalData.bind(this));
+    }
+
+    // Reset buttons
+    const resetLocalBtn = document.getElementById('resetLocalDataBtn');
+    if (resetLocalBtn) {
+      resetLocalBtn.addEventListener('click', this.resetLocalData.bind(this));
+    }
+
+    const resetCloudBtn = document.getElementById('resetCloudDataBtn');
+    if (resetCloudBtn) {
+      resetCloudBtn.addEventListener('click', this.resetCloudData.bind(this));
+    }
+
+    const resetAllBtn = document.getElementById('resetAllDataBtn');
+    if (resetAllBtn) {
+      resetAllBtn.addEventListener('click', this.resetAllData.bind(this));
+    }
+
+    // View stats button
+    const viewStatsBtn = document.getElementById('viewStatsBtn');
+    if (viewStatsBtn) {
+      viewStatsBtn.addEventListener('click', this.viewAppStats.bind(this));
+    }
+
+    // Theme preference radio buttons
+    const themeRadios = document.querySelectorAll(
+      'input[name="themePreference"]'
+    );
+    themeRadios.forEach((radio) => {
+      radio.addEventListener(
+        'change',
+        this.handleThemePreferenceChange.bind(this)
+      );
+    });
+
+    // Unit and format selectors
+    const weightUnit = document.getElementById('weightUnit');
+    const dateFormat = document.getElementById('dateFormat');
+    const weekStart = document.getElementById('weekStart');
+
+    if (weightUnit) {
+      weightUnit.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (dateFormat) {
+      dateFormat.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (weekStart) {
+      weekStart.addEventListener('change', this.handleSettingChange.bind(this));
+    }
+
+    // Goal update buttons
+    const updateGoalsBtn = document.getElementById('updateGoalsBtn');
+    const updateWeightGoalsBtn = document.getElementById(
+      'updateWeightGoalsBtn'
+    );
+
+    if (updateGoalsBtn) {
+      updateGoalsBtn.addEventListener(
+        'click',
+        this.handleUpdateDailyGoals.bind(this)
+      );
+    }
+    if (updateWeightGoalsBtn) {
+      updateWeightGoalsBtn.addEventListener(
+        'click',
+        this.handleUpdateWeightGoals.bind(this)
+      );
+    }
+
+    // Goal threshold checkboxes
+    const allowPartialSteps = document.getElementById('allowPartialSteps');
+    const allowPartialExercise = document.getElementById(
+      'allowPartialExercise'
+    );
+    const strictWellness = document.getElementById('strictWellness');
+
+    if (allowPartialSteps) {
+      allowPartialSteps.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (allowPartialExercise) {
+      allowPartialExercise.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+    if (strictWellness) {
+      strictWellness.addEventListener(
+        'change',
+        this.handleSettingChange.bind(this)
+      );
+    }
+
+    // Enhanced reset buttons
+    const resetStreaksBtn = document.getElementById('resetStreaksBtn');
+    const clearTodayBtn = document.getElementById('clearTodayBtn');
+    const resetProfileBtn = document.getElementById('resetProfileBtn');
+    const resetLogsBtn = document.getElementById('resetLogsBtn');
+
+    if (resetStreaksBtn) {
+      resetStreaksBtn.addEventListener('click', this.resetStreaks.bind(this));
+    }
+    if (clearTodayBtn) {
+      clearTodayBtn.addEventListener('click', this.clearTodaysLog.bind(this));
+    }
+    if (resetProfileBtn) {
+      resetProfileBtn.addEventListener('click', this.resetProfile.bind(this));
+    }
+    if (resetLogsBtn) {
+      resetLogsBtn.addEventListener('click', this.resetLogs.bind(this));
+    }
+
+    // Import file handler (enhanced)
+    const importFile = document.getElementById('importFile');
+    if (importFile) {
+      importFile.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          // Use existing importData logic but ensure it syncs to cloud
+          this.importData(file);
+        }
+      });
+    }
+  }
+
+  /**
+   * Validate API key format before testing connection
+   */
+  validateApiKeyFormat(apiKey) {
+    if (!apiKey || apiKey.trim().length === 0) {
+      return { valid: false, message: 'API key cannot be empty' };
+    }
+
+    const trimmedKey = apiKey.trim();
+
+    // JSONBin.io API keys typically start with $2a$ or $2b$ (bcrypt format)
+    if (!trimmedKey.startsWith('$2a$') && !trimmedKey.startsWith('$2b$')) {
+      return {
+        valid: false,
+        message:
+          'API key format appears incorrect. JSONBin.io keys typically start with $2a$ or $2b$',
+      };
+    }
+
+    if (trimmedKey.length < 50) {
+      return {
+        valid: false,
+        message:
+          'API key appears too short. Please verify you copied the complete key.',
+      };
+    }
+
+    // Check for common copy-paste errors
+    if (
+      trimmedKey.includes(' ') ||
+      trimmedKey.includes('\n') ||
+      trimmedKey.includes('\t')
+    ) {
+      return {
+        valid: false,
+        message:
+          'API key contains invalid characters. Please ensure you copied it correctly.',
+      };
+    }
+
+    return { valid: true, message: 'API key format looks correct' };
+  }
+
+  /**
+   * Enhanced test connection with better validation
+   */
+  async handleTestConnection() {
+    const apiKeyInput = document.getElementById('jsonbinApiKey');
+    const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+
+    // Validate API key format first
+    const validation = this.validateApiKeyFormat(apiKey);
+    if (!validation.valid) {
+      this.updateConnectionStatus('error', validation.message);
+      return;
+    }
+
+    // Show validation success message briefly
+    this.updateConnectionStatus('testing', validation.message);
+
+    // Wait a moment then proceed with connection test
+    setTimeout(async () => {
+      // Temporarily set API key for testing
+      const originalApiKey = this.cloudConfig.apiKey;
+      this.cloudConfig.apiKey = apiKey;
+
+      const success = await this.testCloudConnection();
+
+      if (success) {
+        this.updateConnectionStatus(
+          'success',
+          '✅ Connection successful! You can now complete your profile setup.'
+        );
+        this.saveCloudConfig();
+
+        // Show profile section
+        const profileSection = document.getElementById('profileSection');
+        if (profileSection) {
+          profileSection.style.display = 'block';
+          profileSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      } else {
+        // Restore original API key if test failed
+        this.cloudConfig.apiKey = originalApiKey;
+      }
+    }, 1000);
+  }
+
+  /**
+   * Toggle password visibility
+   */
+  togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    if (input) {
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+
+      // Update button icon
+      const toggleBtn = input.parentElement.querySelector('.toggle-password');
+      if (toggleBtn) {
+        toggleBtn.textContent = isPassword ? '🙈' : '👁️';
+      }
+    }
+  }
+
+  /**
+   * Handle user profile setup with cloud integration
+   */
+  async handleSetup(e) {
+    e.preventDefault();
+
+    // Ensure API key is set
+    if (!this.cloudConfig.apiKey) {
+      this.showError('Please test your API key connection first');
+      return;
+    }
+
+    const formData = new FormData(e.target);
+
+    // Parse form values with validation
+    const startingWeight = parseFloat(formData.get('startingWeight'));
+    const goalWeight = parseFloat(formData.get('goalWeight'));
+    const dailySteps = parseInt(formData.get('dailySteps'));
+    const dailyExercise = parseInt(formData.get('dailyExercise'));
+    const dailyWater = parseFloat(formData.get('dailyWater'));
+
+    // Validate input
+    if (
+      !this.validateSetupData(
+        startingWeight,
+        goalWeight,
+        dailySteps,
+        dailyExercise,
+        dailyWater
+      )
+    ) {
+      return;
+    }
+
+    // Create user profile
+    this.currentUser = {
+      startingWeight,
+      goalWeight,
+      currentWeight: startingWeight,
+      dailySteps,
+      dailyExercise,
+      dailyWater,
+      setupDate: new Date().toISOString(),
+      lastWeightUpdate: new Date().toISOString(),
+    };
+
+    // Initialize streaks
+    this.streaks = this.initializeStreaks();
+
+    // Save locally first
+    this.saveLocalData();
+
+    // Try to sync to cloud
+    const cloudSyncSuccess = await this.saveToCloud();
+
+    // Show app regardless of cloud sync status
+    this.showAppScreen();
+    this.updateDashboard();
+    this.initializeDefaultMilestones();
+
+    if (cloudSyncSuccess) {
+      this.showSuccess(
+        '🎉 Profile created and synced to cloud! Start logging your fitness journey.'
+      );
+    } else {
+      this.showSuccess(
+        'Profile created! Data saved locally and will sync when cloud connection is restored.'
+      );
+    }
+  }
+
+  /**
+   * Handle daily log submission with cloud sync
+   */
+  async handleDailyLog(e) {
+    e.preventDefault();
+
+    const today = this.currentDate;
+
+    // Get form values
+    const weightInput = document.getElementById('todayWeight');
+    const stepsInput = document.getElementById('todaySteps');
+    const exerciseInput = document.getElementById('todayExerciseMinutes');
+    const waterInput = document.getElementById('todayWater');
+
+    const weight =
+      weightInput && weightInput.value !== ''
+        ? parseFloat(weightInput.value)
+        : null;
+    const steps =
+      stepsInput && stepsInput.value !== '' ? parseInt(stepsInput.value) : 0;
+    const exerciseMinutes =
+      exerciseInput && exerciseInput.value !== ''
+        ? parseInt(exerciseInput.value)
+        : 0;
+    const water =
+      waterInput && waterInput.value !== '' ? parseFloat(waterInput.value) : 0;
+
+    // Get selected exercise types
+    const exerciseTypes = Array.from(
+      document.querySelectorAll('.exercise-checkbox:checked')
+    ).map((cb) => cb.value);
+
+    // Get wellness score
+    const wellnessItems = Array.from(
+      document.querySelectorAll('.wellness-checkbox:checked')
+    ).map((cb) => cb.dataset.wellness);
+    const wellnessScore = wellnessItems.length;
+
+    // Validate data
+    if (
+      !(await this.validateDailyLog(
+        weight,
+        steps,
+        exerciseMinutes,
+        water,
+        exerciseTypes
+      ))
+    ) {
+      return;
+    }
+
+    // Create daily log entry
+    const logEntry = {
+      date: today,
+      weight,
+      steps,
+      exerciseMinutes,
+      exerciseTypes,
+      water,
+      wellnessScore,
+      wellnessItems,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Save log entry locally first (offline-first approach)
+    this.dailyLogs[today] = logEntry;
+
+    // Update user's current weight if provided
+    if (weight) {
+      this.currentUser.currentWeight = weight;
+      this.currentUser.lastWeightUpdate = new Date().toISOString();
+    }
+
+    // Update streaks
+    this.updateStreaks(logEntry);
+
+    // Save all data locally
+    this.saveLocalData();
+
+    // Add to sync queue and try cloud sync
+    this.addToSyncQueue('dailyLog', logEntry);
+
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      await this.saveToCloud();
+    }
+
+    // Update dashboard
+    this.updateDashboard();
+
+    // Check for achievements
+    this.checkAchievements();
+
+    this.showSuccess('✅ Daily log saved successfully!');
+  }
+
+  /**
+   * Load all data from localStorage (backup storage)
+   */
+  loadLocalData() {
+    try {
+      this.currentUser = JSON.parse(localStorage.getItem('byf_user')) || null;
+      this.dailyLogs = JSON.parse(localStorage.getItem('byf_dailyLogs')) || {};
+      this.streaks =
+        JSON.parse(localStorage.getItem('byf_streaks')) ||
+        this.initializeStreaks();
+      this.customRewards =
+        JSON.parse(localStorage.getItem('byf_customRewards')) || [];
+      this.achievements =
+        JSON.parse(localStorage.getItem('byf_achievements')) || [];
+
+      // Load preferences
+      this.autoSyncEnabled = localStorage.getItem('byf_auto_sync') !== 'false';
+      this.syncNotifications =
+        localStorage.getItem('byf_sync_notifications') !== 'false';
+
+      // Load theme preference
+      const savedTheme = localStorage.getItem('byf_theme') || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      this.updateThemeToggle(savedTheme);
+    } catch (error) {
+      console.error('Error loading local data:', error);
+      this.showError('Failed to load saved data. Starting fresh.');
+    }
+
+    this.loadSettingsFromStorage();
+  }
+
+  /**
+   * Save all data to localStorage (backup storage)
+   */
+  saveLocalData() {
+    try {
+      localStorage.setItem('byf_user', JSON.stringify(this.currentUser));
+      localStorage.setItem('byf_dailyLogs', JSON.stringify(this.dailyLogs));
+      localStorage.setItem('byf_streaks', JSON.stringify(this.streaks));
+      localStorage.setItem(
+        'byf_customRewards',
+        JSON.stringify(this.customRewards)
+      );
+      localStorage.setItem(
+        'byf_achievements',
+        JSON.stringify(this.achievements)
+      );
+    } catch (error) {
+      console.error('Error saving local data:', error);
+      this.showError('Failed to save data locally. Please try again.');
+    }
+  }
+
+  /**
+   * Load settings tab content
+   */
+  loadSettingsTab() {
+    this.updateSettingsDisplay();
+  }
+
+  /**
+   * Update dashboard display
+   */
+  updateDashboard() {
+    this.updateStreakDisplay();
+    this.updateQuickStats();
+    this.updateWeightStatus();
+    this.loadTodaysData();
+    this.updateWellnessScore();
+    this.updateExerciseSelection();
+    this.updateSyncStatus();
+  }
+
+  /**
+   * Update streak display in sidebar
+   */
+  updateStreakDisplay() {
+    const currentStreakEl = document.getElementById('currentStreak');
+    if (currentStreakEl) {
+      currentStreakEl.textContent = this.streaks.overall;
+    }
+
+    const streakTypes = ['steps', 'exercise', 'water', 'wellness'];
+    streakTypes.forEach((type) => {
+      const streakEl = document.getElementById(`${type}Streak`);
+      if (streakEl) {
+        const valueEl = streakEl.querySelector('.streak-value');
+        if (valueEl) {
+          valueEl.textContent = this.streaks[type];
+        }
+
+        if (this.streaks[type] > 0) {
+          streakEl.classList.add('active');
+        } else {
+          streakEl.classList.remove('active');
+        }
+      }
+    });
+  }
+
+  /**
+   * Update quick stats display
+   */
+  updateQuickStats() {
+    const currentWeightEl = document.getElementById('currentWeightDisplay');
+    const goalWeightEl = document.getElementById('goalWeightDisplay');
+    const weightToGoEl = document.getElementById('weightToGoDisplay');
+
+    if (currentWeightEl && this.currentUser) {
+      currentWeightEl.textContent = `${this.currentUser.currentWeight} lbs`;
+    }
+
+    if (goalWeightEl && this.currentUser) {
+      goalWeightEl.textContent = `${this.currentUser.goalWeight} lbs`;
+    }
+
+    if (weightToGoEl && this.currentUser) {
+      const weightToGo = Math.abs(
+        this.currentUser.currentWeight - this.currentUser.goalWeight
+      );
+      weightToGoEl.textContent = `${weightToGo.toFixed(1)} lbs`;
+    }
+  }
+
+  /**
+   * Update weight status indicator
+   */
+  updateWeightStatus() {
+    const weightStatusEl = document.getElementById('weightStatus');
+    if (!weightStatusEl) return;
+
+    const weeklyWeightMet = this.checkWeeklyWeight(this.currentDate);
+    if (weeklyWeightMet) {
+      weightStatusEl.textContent = '✅ Logged this week';
+      weightStatusEl.style.color = 'var(--accent-success)';
+    } else {
+      weightStatusEl.textContent = '⚠️ Not logged this week';
+      weightStatusEl.style.color = 'var(--accent-warning)';
+    }
+  }
+
+  /**
+   * Load today's data into the form
+   */
+  loadTodaysData() {
+    const todaysLog = this.dailyLogs[this.currentDate];
+
+    if (!todaysLog) return;
+
+    // Load form values
+    const weightInput = document.getElementById('todayWeight');
+    const stepsInput = document.getElementById('todaySteps');
+    const exerciseInput = document.getElementById('todayExerciseMinutes');
+    const waterInput = document.getElementById('todayWater');
+
+    if (
+      weightInput &&
+      todaysLog.weight !== null &&
+      todaysLog.weight !== undefined
+    ) {
+      weightInput.value = todaysLog.weight;
+    }
+    if (stepsInput && todaysLog.steps) {
+      stepsInput.value = todaysLog.steps;
+    }
+    if (exerciseInput && todaysLog.exerciseMinutes) {
+      exerciseInput.value = todaysLog.exerciseMinutes;
+    }
+    if (waterInput && todaysLog.water) {
+      waterInput.value = todaysLog.water;
+    }
+
+    // Clear existing selections first
+    document
+      .querySelectorAll('.exercise-checkbox')
+      .forEach((cb) => (cb.checked = false));
+    document
+      .querySelectorAll('.wellness-checkbox')
+      .forEach((cb) => (cb.checked = false));
+
+    // Load exercise types
+    if (todaysLog.exerciseTypes && todaysLog.exerciseTypes.length > 0) {
+      todaysLog.exerciseTypes.forEach((type) => {
+        const checkbox = document.getElementById(type);
+        if (checkbox) {
+          checkbox.checked = true;
+        }
+      });
+    }
+
+    // Load wellness items
+    if (todaysLog.wellnessItems && todaysLog.wellnessItems.length > 0) {
+      todaysLog.wellnessItems.forEach((item) => {
+        const checkbox = document.querySelector(`[data-wellness="${item}"]`);
+        if (checkbox) {
+          checkbox.checked = true;
+        }
+      });
+    }
+
+    // Update displays after loading data
+    this.updateWellnessScore();
+    this.updateExerciseSelection();
   }
 
   /**
@@ -1177,227 +2057,561 @@ class BribeYourselfFit {
   }
 
   /**
-   * Update dashboard display
+   * Toggle theme between light and dark
    */
-  updateDashboard() {
-    this.updateStreakDisplay();
-    this.updateQuickStats();
-    this.updateWeightStatus();
-    this.loadTodaysData();
-    this.updateWellnessScore();
-    this.updateExerciseSelection();
+  toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('byf_theme', newTheme);
+
+    this.updateThemeToggle(newTheme);
   }
 
   /**
-   * Update streak display in sidebar
+   * Update theme toggle button text
    */
-  updateStreakDisplay() {
-    // Main streak counter
-    const currentStreakEl = document.getElementById('currentStreak');
-    if (currentStreakEl) {
-      currentStreakEl.textContent = this.streaks.overall;
+  updateThemeToggle(theme) {
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+      themeToggle.textContent =
+        theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
     }
+  }
 
-    // Individual streak counters
-    const streakTypes = ['steps', 'exercise', 'water', 'wellness'];
-    streakTypes.forEach((type) => {
-      const streakEl = document.getElementById(`${type}Streak`);
-      if (streakEl) {
-        const valueEl = streakEl.querySelector('.streak-value');
-        if (valueEl) {
-          valueEl.textContent = this.streaks[type];
+  /**
+   * Update current date display
+   */
+  updateCurrentDate() {
+    const currentDateEl = document.getElementById('currentDate');
+    if (currentDateEl) {
+      const today = new Date();
+      currentDateEl.textContent = today.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    }
+  }
+
+  /**
+   * Show setup screen
+   */
+  showSetupScreen() {
+    document.getElementById('setupScreen').classList.remove('hidden');
+    document.getElementById('appScreen').classList.add('hidden');
+  }
+
+  /**
+   * Show main app screen
+   */
+  showAppScreen() {
+    document.getElementById('setupScreen').classList.add('hidden');
+    document.getElementById('appScreen').classList.remove('hidden');
+    this.initializeDefaultMilestones();
+  }
+
+  /**
+   * Show success message
+   */
+  showSuccess(message, duration = 3000) {
+    const existingMessages = document.querySelectorAll('.success-message');
+    existingMessages.forEach((msg) => msg.remove());
+
+    const successEl = document.createElement('div');
+    successEl.className = 'success-message';
+    successEl.textContent = message;
+
+    document.body.appendChild(successEl);
+
+    setTimeout(() => {
+      successEl.classList.add('show');
+    }, 100);
+
+    setTimeout(() => {
+      successEl.classList.remove('show');
+      setTimeout(() => {
+        if (successEl.parentNode) {
+          successEl.parentNode.removeChild(successEl);
         }
-
-        // Add active class if streak > 0
-        if (this.streaks[type] > 0) {
-          streakEl.classList.add('active');
-        } else {
-          streakEl.classList.remove('active');
-        }
-      }
-    });
+      }, 300);
+    }, duration);
   }
 
   /**
-   * Update quick stats display
+   * Show error message
    */
-  updateQuickStats() {
-    const currentWeightEl = document.getElementById('currentWeightDisplay');
-    const goalWeightEl = document.getElementById('goalWeightDisplay');
-    const weightToGoEl = document.getElementById('weightToGoDisplay');
-
-    if (currentWeightEl && this.currentUser) {
-      currentWeightEl.textContent = `${this.currentUser.currentWeight} lbs`;
-    }
-
-    if (goalWeightEl && this.currentUser) {
-      goalWeightEl.textContent = `${this.currentUser.goalWeight} lbs`;
-    }
-
-    if (weightToGoEl && this.currentUser) {
-      const weightToGo = Math.abs(
-        this.currentUser.currentWeight - this.currentUser.goalWeight
-      );
-      weightToGoEl.textContent = `${weightToGo.toFixed(1)} lbs`;
-    }
+  showError(message) {
+    alert(`Error: ${message}`);
   }
 
   /**
-   * Update weight status indicator
+   * Get app statistics for debugging/info
    */
-  updateWeightStatus() {
-    const weightStatusEl = document.getElementById('weightStatus');
-    if (!weightStatusEl) return;
+  getAppStats() {
+    const totalLogs = Object.keys(this.dailyLogs).length;
+    const weightLogs = Object.values(this.dailyLogs).filter(
+      (log) => log.weight !== null
+    ).length;
+    const totalExerciseMinutes = Object.values(this.dailyLogs).reduce(
+      (sum, log) => sum + (log.exerciseMinutes || 0),
+      0
+    );
+    const totalSteps = Object.values(this.dailyLogs).reduce(
+      (sum, log) => sum + (log.steps || 0),
+      0
+    );
+    const totalWater = Object.values(this.dailyLogs).reduce(
+      (sum, log) => sum + (log.water || 0),
+      0
+    );
 
-    const weeklyWeightMet = this.checkWeeklyWeight(this.currentDate);
-    if (weeklyWeightMet) {
-      weightStatusEl.textContent = '✅ Logged this week';
-      weightStatusEl.style.color = 'var(--accent-success)';
+    const stats = {
+      version: 'Cloud v1.0.0',
+      cloudConnected: this.cloudConfig.isConnected,
+      lastCloudSync: this.cloudConfig.lastSync,
+      profileCreated: this.currentUser?.setupDate,
+      totalDaysLogged: totalLogs,
+      weightEntriesLogged: weightLogs,
+      currentStreak: this.streaks.overall,
+      longestStreak: Math.max(
+        this.streaks.steps,
+        this.streaks.exercise,
+        this.streaks.water,
+        this.streaks.wellness,
+        this.streaks.overall
+      ),
+      totalExerciseMinutes,
+      totalSteps,
+      totalWaterLiters: totalWater,
+      achievementsUnlocked: this.achievements.length,
+      customRewards: this.customRewards.length,
+      pendingSyncs: this.syncQueue.filter((item) => !item.synced).length,
+    };
+
+    if (this.currentUser) {
+      stats.weightProgress = {
+        starting: this.currentUser.startingWeight,
+        current: this.currentUser.currentWeight,
+        goal: this.currentUser.goalWeight,
+        lost: this.currentUser.startingWeight - this.currentUser.currentWeight,
+        remaining: Math.abs(
+          this.currentUser.currentWeight - this.currentUser.goalWeight
+        ),
+      };
+    }
+
+    return stats;
+  }
+
+  /**
+   * Handle theme preference changes (enhanced for cloud)
+   */
+  handleThemePreferenceChange(e) {
+    const value = e.target.value;
+    this.settings = this.settings || {};
+    this.settings.themePreference = value;
+    this.saveSettings();
+
+    if (value === 'system') {
+      // Follow system preference
+      const systemPrefersDark = window.matchMedia(
+        '(prefers-color-scheme: dark)'
+      ).matches;
+      const theme = systemPrefersDark ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('byf_theme', theme);
     } else {
-      weightStatusEl.textContent = '⚠️ Not logged this week';
-      weightStatusEl.style.color = 'var(--accent-warning)';
+      // Use selected theme
+      document.documentElement.setAttribute('data-theme', value);
+      localStorage.setItem('byf_theme', value);
+    }
+
+    this.updateThemeToggle(document.documentElement.getAttribute('data-theme'));
+
+    // Sync settings to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
     }
   }
 
   /**
-   * Load today's data into the form - FIXED VERSION
+   * Handle general setting changes (enhanced for cloud)
    */
-  loadTodaysData() {
-    const todaysLog = this.dailyLogs[this.currentDate];
+  handleSettingChange(e) {
+    const setting = e.target.id;
+    const value =
+      e.target.type === 'checkbox' ? e.target.checked : e.target.value;
 
-    console.log("Loading today's data for:", this.currentDate, todaysLog); // Debug log
+    this.settings = this.settings || {};
+    this.settings[setting] = value;
+    this.saveSettings();
 
-    if (!todaysLog) return;
+    // Apply certain settings immediately
+    if (setting === 'weekStart') {
+      // Re-render calendar if it's currently visible
+      if (this.currentTab === 'charts') {
+        this.renderStreakCalendar();
+      }
+    }
 
-    // Load form values - Make sure we're targeting the right elements
-    const weightInput = document.getElementById('todayWeight');
-    const stepsInput = document.getElementById('todaySteps');
-    const exerciseInput = document.getElementById('todayExerciseMinutes');
-    const waterInput = document.getElementById('todayWater');
+    // Sync settings to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+    }
+  }
 
+  /**
+   * Handle daily goals update (enhanced for cloud)
+   */
+  handleUpdateDailyGoals() {
+    const stepsInput = document.getElementById('settingsSteps');
+    const exerciseInput = document.getElementById('settingsExercise');
+    const waterInput = document.getElementById('settingsWater');
+
+    const steps = parseInt(stepsInput.value);
+    const exercise = parseInt(exerciseInput.value);
+    const water = parseFloat(waterInput.value);
+
+    // Validate inputs
+    if (isNaN(steps) || steps < 1000 || steps > 50000) {
+      this.showError('Steps goal must be between 1,000 and 50,000');
+      return;
+    }
+    if (isNaN(exercise) || exercise < 5 || exercise > 300) {
+      this.showError('Exercise goal must be between 5 and 300 minutes');
+      return;
+    }
+    if (isNaN(water) || water < 0.5 || water > 10) {
+      this.showError('Water goal must be between 0.5 and 10 liters');
+      return;
+    }
+
+    // Update goals
+    this.currentUser.dailySteps = steps;
+    this.currentUser.dailyExercise = exercise;
+    this.currentUser.dailyWater = water;
+
+    this.saveLocalData();
+    this.updateDashboard();
+
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+      this.showSuccess('Daily goals updated and synced to cloud!');
+    } else {
+      this.showSuccess('Daily goals updated! Will sync when connected.');
+    }
+  }
+
+  /**
+   * Handle weight goals update (enhanced for cloud)
+   */
+  handleUpdateWeightGoals() {
+    const goalWeightInput = document.getElementById('settingsGoalWeight');
+    const goalWeight = parseFloat(goalWeightInput.value);
+
+    // Validate input
+    if (isNaN(goalWeight) || goalWeight < 50 || goalWeight > 1000) {
+      this.showError('Goal weight must be between 50 and 1000 lbs');
+      return;
+    }
+
+    if (Math.abs(goalWeight - this.currentUser.startingWeight) < 1) {
+      this.showError(
+        'Goal weight should be at least 1 lb different from starting weight'
+      );
+      return;
+    }
+
+    // Update goal weight
+    this.currentUser.goalWeight = goalWeight;
+
+    // Regenerate weight milestones
+    this.initializeDefaultMilestones();
+
+    this.saveLocalData();
+    this.updateDashboard();
+
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+      this.showSuccess('Weight goal updated and synced to cloud!');
+    } else {
+      this.showSuccess('Weight goal updated! Will sync when connected.');
+    }
+  }
+
+  /**
+   * Reset functions adapted for cloud version
+   */
+
+  /**
+   * Reset streaks only (cloud version)
+   */
+  resetStreaks() {
+    if (!confirm('This will reset all your streaks to 0. Continue?')) return;
+
+    this.streaks = this.initializeStreaks();
+    this.saveLocalData();
+    this.updateDashboard();
+
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+      this.showSuccess('All streaks reset and synced to cloud!');
+    } else {
+      this.showSuccess('All streaks reset! Will sync when connected.');
+    }
+  }
+
+  /**
+   * Clear today's log only (cloud version)
+   */
+  clearTodaysLog() {
+    if (!confirm("This will clear today's fitness log. Continue?")) return;
+
+    delete this.dailyLogs[this.currentDate];
+    this.saveLocalData();
+    this.updateDashboard();
+    this.loadTodaysData(); // Refresh the form
+
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+      this.showSuccess("Today's log cleared and synced to cloud!");
+    } else {
+      this.showSuccess("Today's log cleared! Will sync when connected.");
+    }
+  }
+
+  /**
+   * Reset profile but keep logs (cloud version)
+   */
+  resetProfile() {
     if (
-      weightInput &&
-      todaysLog.weight !== null &&
-      todaysLog.weight !== undefined
-    ) {
-      weightInput.value = todaysLog.weight;
-    }
-    if (stepsInput && todaysLog.steps) {
-      stepsInput.value = todaysLog.steps;
-    }
-    if (exerciseInput && todaysLog.exerciseMinutes) {
-      exerciseInput.value = todaysLog.exerciseMinutes;
-    }
-    if (waterInput && todaysLog.water) {
-      waterInput.value = todaysLog.water;
+      !confirm(
+        'This will reset your profile but keep your daily logs. Continue?'
+      )
+    )
+      return;
+
+    // Reset user profile
+    this.currentUser = null;
+    this.saveLocalData();
+
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
     }
 
-    // Clear existing exercise type selections first
-    document
-      .querySelectorAll('.exercise-checkbox')
-      .forEach((cb) => (cb.checked = false));
-
-    // Load exercise types
-    if (todaysLog.exerciseTypes && todaysLog.exerciseTypes.length > 0) {
-      todaysLog.exerciseTypes.forEach((type) => {
-        const checkbox = document.getElementById(type);
-        if (checkbox) {
-          checkbox.checked = true;
-        }
-      });
-    }
-
-    // Clear existing wellness selections first
-    document
-      .querySelectorAll('.wellness-checkbox')
-      .forEach((cb) => (cb.checked = false));
-
-    // Load wellness items
-    if (todaysLog.wellnessItems && todaysLog.wellnessItems.length > 0) {
-      todaysLog.wellnessItems.forEach((item) => {
-        const checkbox = document.querySelector(`[data-wellness="${item}"]`);
-        if (checkbox) {
-          checkbox.checked = true;
-        }
-      });
-    }
-
-    // Update displays after loading data
-    this.updateWellnessScore();
-    this.updateExerciseSelection();
+    this.showSetupScreen();
+    this.showSuccess('Profile reset. Please set up your goals again.');
   }
 
   /**
-   * Switch between tabs - CORRECTED VERSION
+   * Clear all logs but keep profile (cloud version)
    */
-  switchTab(tabName) {
-    this.currentTab = tabName;
+  resetLogs() {
+    if (
+      !confirm(
+        'This will delete ALL daily logs but keep your profile. Continue?'
+      )
+    )
+      return;
+    if (!confirm('Are you sure? This cannot be undone!')) return;
 
-    // Update tab buttons
-    document.querySelectorAll('.tab-btn').forEach((btn) => {
-      if (btn.dataset.tab === tabName) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-    });
+    this.dailyLogs = {};
+    this.streaks = this.initializeStreaks();
+    this.achievements = []; // Clear achievements since they're based on logs
+    this.saveLocalData();
+    this.updateDashboard();
 
-    // Update tab content - FIXED LOGIC
-    document.querySelectorAll('.tab-content').forEach((content) => {
-      if (content.id === `${tabName}Tab`) {
-        content.classList.remove('hidden');
-        content.classList.add('active');
-        content.style.display = 'block'; // Force display
-      } else {
-        content.classList.add('hidden');
-        content.classList.remove('active');
-        content.style.display = 'none'; // Force hide
-      }
-    });
+    // Sync to cloud
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      this.saveToCloud();
+      this.showSuccess('All daily logs cleared and synced to cloud!');
+    } else {
+      this.showSuccess('All daily logs cleared! Will sync when connected.');
+    }
+  }
 
-    // Load tab-specific content with error handling
+  /**
+   * Get default settings (for cloud version)
+   */
+  getDefaultSettings() {
+    return {
+      themePreference: 'system',
+      weightUnit: 'lbs',
+      dateFormat: 'US',
+      weekStart: 'sunday',
+      allowPartialSteps: false,
+      allowPartialExercise: false,
+      strictWellness: false,
+    };
+  }
+
+  /**
+   * Save settings to localStorage (enhanced for cloud)
+   */
+  saveSettings() {
     try {
-      if (tabName === 'charts') {
-        console.log('Loading charts tab...');
-        this.loadChartsTab();
-      } else if (tabName === 'rewards') {
-        console.log('Loading rewards tab...');
-        this.loadRewardsTab();
-      } else if (tabName === 'settings') {
-        console.log('Loading settings tab...');
-        this.loadSettingsTab();
+      localStorage.setItem('byf_settings', JSON.stringify(this.settings));
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
+  }
+
+  /**
+   * Load settings tab content (enhanced for cloud)
+   */
+  loadSettingsTab() {
+    this.updateSettingsDisplay();
+    this.loadSettingsFromStorage(); // Add this new function
+  }
+
+  /**
+   * Load settings from storage (new function)
+   */
+  loadSettingsFromStorage() {
+    try {
+      // Load settings from localStorage
+      const savedSettings = localStorage.getItem('byf_settings');
+      if (savedSettings) {
+        this.settings = {
+          ...this.getDefaultSettings(),
+          ...JSON.parse(savedSettings),
+        };
+      } else {
+        this.settings = this.getDefaultSettings();
+      }
+
+      // Apply theme preference
+      if (this.settings.themePreference === 'system') {
+        this.setupSystemThemeListener();
+      } else {
+        document.documentElement.setAttribute(
+          'data-theme',
+          this.settings.themePreference
+        );
+        localStorage.setItem('byf_theme', this.settings.themePreference);
       }
     } catch (error) {
-      console.error(`Error loading ${tabName} tab:`, error);
+      console.error('Error loading settings:', error);
+      this.settings = this.getDefaultSettings();
     }
   }
 
   /**
-   * Load charts tab content - MOBILE OPTIMIZED VERSION
+   * Setup system theme preference listener (new function)
+   */
+  setupSystemThemeListener() {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleThemeChange = (e) => {
+      if (this.settings.themePreference === 'system') {
+        const theme = e.matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('byf_theme', theme);
+        this.updateThemeToggle(theme);
+      }
+    };
+
+    mediaQuery.addListener(handleThemeChange);
+    // Set initial theme
+    handleThemeChange(mediaQuery);
+  }
+
+  /**
+   * Enhanced updateSettingsDisplay function
+   */
+  updateSettingsDisplay() {
+    // Call existing updateSettingsDisplay first
+    if (this.originalUpdateSettingsDisplay) {
+      this.originalUpdateSettingsDisplay.call(this);
+    }
+
+    // Update theme preference radio buttons
+    const themePreference = this.settings?.themePreference || 'system';
+    const themeRadio = document.querySelector(
+      `input[value="${themePreference}"]`
+    );
+    if (themeRadio) {
+      themeRadio.checked = true;
+    }
+
+    // Update unit and format selectors
+    const weightUnit = document.getElementById('weightUnit');
+    const dateFormat = document.getElementById('dateFormat');
+    const weekStart = document.getElementById('weekStart');
+
+    if (weightUnit && this.settings?.weightUnit) {
+      weightUnit.value = this.settings.weightUnit;
+    }
+    if (dateFormat && this.settings?.dateFormat) {
+      dateFormat.value = this.settings.dateFormat;
+    }
+    if (weekStart && this.settings?.weekStart) {
+      weekStart.value = this.settings.weekStart;
+    }
+
+    // Update daily goals inputs
+    if (this.currentUser) {
+      const settingsSteps = document.getElementById('settingsSteps');
+      const settingsExercise = document.getElementById('settingsExercise');
+      const settingsWater = document.getElementById('settingsWater');
+      const settingsStartingWeight = document.getElementById(
+        'settingsStartingWeight'
+      );
+      const settingsGoalWeight = document.getElementById('settingsGoalWeight');
+
+      if (settingsSteps) settingsSteps.value = this.currentUser.dailySteps;
+      if (settingsExercise)
+        settingsExercise.value = this.currentUser.dailyExercise;
+      if (settingsWater) settingsWater.value = this.currentUser.dailyWater;
+      if (settingsStartingWeight)
+        settingsStartingWeight.value = this.currentUser.startingWeight;
+      if (settingsGoalWeight)
+        settingsGoalWeight.value = this.currentUser.goalWeight;
+    }
+
+    // Update goal threshold checkboxes
+    const allowPartialSteps = document.getElementById('allowPartialSteps');
+    const allowPartialExercise = document.getElementById(
+      'allowPartialExercise'
+    );
+    const strictWellness = document.getElementById('strictWellness');
+
+    if (allowPartialSteps)
+      allowPartialSteps.checked = this.settings?.allowPartialSteps || false;
+    if (allowPartialExercise)
+      allowPartialExercise.checked =
+        this.settings?.allowPartialExercise || false;
+    if (strictWellness)
+      strictWellness.checked = this.settings?.strictWellness || false;
+  }
+
+  /**
+   * Load charts tab content
    */
   loadChartsTab() {
-    console.log('Loading charts tab...');
-
-    // Check if mobile device
     const isMobile = window.innerWidth <= 768;
-    const delay = isMobile ? 300 : 100; // Longer delay on mobile
+    const delay = isMobile ? 300 : 100;
 
-    // Use requestAnimationFrame for better performance
     requestAnimationFrame(() => {
       setTimeout(() => {
         try {
-          // Render charts one by one on mobile to reduce load
           if (isMobile) {
             this.renderWeightChart();
             setTimeout(() => this.renderActivityChart(), 150);
             setTimeout(() => this.renderStreakCalendar(), 300);
           } else {
-            // Render all at once on desktop
             this.renderWeightChart();
             this.renderActivityChart();
             this.renderStreakCalendar();
           }
-          console.log('Charts rendered successfully');
         } catch (error) {
           console.error('Error rendering charts:', error);
         }
@@ -1411,7 +2625,6 @@ class BribeYourselfFit {
   setChartPeriod(period) {
     this.chartPeriod = period;
 
-    // Update chart button states
     document.querySelectorAll('.chart-btn').forEach((btn) => {
       if (
         (btn.dataset.period && parseInt(btn.dataset.period) === period) ||
@@ -1423,28 +2636,23 @@ class BribeYourselfFit {
       }
     });
 
-    // Re-render charts
     this.renderWeightChart();
     this.renderActivityChart();
   }
 
   /**
-   * Render weight progress chart using Canvas - FIXED SIZING
+   * Render weight progress chart using Canvas
    */
   renderWeightChart() {
     const canvas = document.getElementById('weightChart');
     if (!canvas) return;
 
-    // Force canvas to have dimensions BEFORE getting context
     const container = canvas.parentElement;
     const isMobile = window.innerWidth <= 768;
-
-    // Use lower resolution on mobile for better performance
     const pixelRatio = isMobile ? 1 : window.devicePixelRatio || 1;
     const containerWidth = container.offsetWidth || (isMobile ? 350 : 800);
     const containerHeight = container.offsetHeight || (isMobile ? 250 : 400);
 
-    // Set canvas size with pixel ratio optimization
     canvas.width = containerWidth * pixelRatio;
     canvas.height = containerHeight * pixelRatio;
     canvas.style.width = containerWidth + 'px';
@@ -1455,33 +2663,25 @@ class BribeYourselfFit {
     const width = containerWidth;
     const height = containerHeight;
 
-    // Rest of your chart code continues here...
     const padding = { top: 40, right: 40, bottom: 60, left: 60 };
-    // ... continue with existing chart code
 
-    // Get weight data - ADD THIS HERE
     const weightData = this.getWeightData();
     if (weightData.length === 0) {
       this.drawNoDataMessage(ctx, width, height, 'No weight data available');
       return;
     }
 
-    // Clear canvas
     ctx.clearRect(0, 0, width, height);
 
-    // Calculate scales
     const weights = weightData.map((d) => d.weight);
     const minWeight = Math.min(...weights, this.currentUser.goalWeight) - 5;
     const maxWeight = Math.max(...weights, this.currentUser.startingWeight) + 5;
 
-    // Calculate chart area dimensions
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
 
-    // Define scale functions
     const xScale = (index) =>
       padding.left + (index / (weightData.length - 1)) * chartWidth;
-
     const yScale = (weight) =>
       padding.top +
       (1 - (weight - minWeight) / (maxWeight - minWeight)) * chartHeight;
@@ -1492,7 +2692,6 @@ class BribeYourselfFit {
     ).getPropertyValue('--border-color');
     ctx.lineWidth = 1;
 
-    // Horizontal grid lines
     for (let i = 0; i <= 5; i++) {
       const weight = minWeight + (maxWeight - minWeight) * (i / 5);
       const y = yScale(weight);
@@ -1501,7 +2700,6 @@ class BribeYourselfFit {
       ctx.lineTo(width - padding.right, y);
       ctx.stroke();
 
-      // Weight labels
       ctx.fillStyle = getComputedStyle(
         document.documentElement
       ).getPropertyValue('--text-secondary');
@@ -1527,7 +2725,6 @@ class BribeYourselfFit {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Goal label
       ctx.fillStyle = getComputedStyle(
         document.documentElement
       ).getPropertyValue('--accent-success');
@@ -1569,7 +2766,6 @@ class BribeYourselfFit {
       ctx.fill();
     });
 
-    // Draw trend indicator
     this.updateWeightTrend(weightData);
   }
 
@@ -1614,53 +2810,43 @@ class BribeYourselfFit {
   }
 
   /**
-   * Render activity summary chart using Canvas
+   * Render activity summary chart
    */
   renderActivityChart() {
     const canvas = document.getElementById('activityChart');
     if (!canvas) return;
 
-    // Force canvas to have dimensions BEFORE getting context
     const container = canvas.parentElement;
     const isMobile = window.innerWidth <= 768;
-
-    // Use lower resolution on mobile for better performance
     const pixelRatio = isMobile ? 1 : window.devicePixelRatio || 1;
     const containerWidth = container.offsetWidth || (isMobile ? 350 : 800);
     const containerHeight = container.offsetHeight || (isMobile ? 250 : 400);
 
-    // Set canvas size with pixel ratio optimization
     canvas.width = containerWidth * pixelRatio;
     canvas.height = containerHeight * pixelRatio;
     canvas.style.width = containerWidth + 'px';
     canvas.style.height = containerHeight + 'px';
 
-    // Scale context for crisp rendering
     const ctx = canvas.getContext('2d');
     ctx.scale(pixelRatio, pixelRatio);
     const width = containerWidth;
     const height = containerHeight;
 
-    // Get activity data
     const activityData = this.getActivityData();
     if (activityData.length === 0) {
       this.drawNoDataMessage(ctx, width, height, 'No activity data available');
       return;
     }
 
-    // Clear canvas
     ctx.clearRect(0, 0, width, height);
 
-    // Define chart dimensions and padding
     const padding = { top: 40, right: 40, bottom: 80, left: 60 };
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
 
-    // Calculate bar dimensions
     const barWidth = (chartWidth / activityData.length) * 0.8;
     const barSpacing = (chartWidth / activityData.length) * 0.2;
 
-    // Find max values for scaling
     const maxSteps = Math.max(
       ...activityData.map((d) => d.steps),
       this.currentUser.dailySteps
@@ -1674,18 +2860,15 @@ class BribeYourselfFit {
       this.currentUser.dailyWater
     );
 
-    // Draw goal lines
     this.drawGoalLines(ctx, padding, chartWidth, chartHeight, {
       steps: this.currentUser.dailySteps / maxSteps,
       exercise: this.currentUser.dailyExercise / maxExercise,
       water: this.currentUser.dailyWater / maxWater,
     });
 
-    // Draw bars
     activityData.forEach((data, index) => {
       const x = padding.left + index * (barWidth + barSpacing) + barSpacing / 2;
 
-      // Steps bar (normalized)
       const stepsHeight = (data.steps / maxSteps) * chartHeight;
       ctx.fillStyle = getComputedStyle(
         document.documentElement
@@ -1697,7 +2880,6 @@ class BribeYourselfFit {
         stepsHeight
       );
 
-      // Exercise bar (normalized)
       const exerciseHeight = (data.exercise / maxExercise) * chartHeight;
       ctx.fillStyle = getComputedStyle(
         document.documentElement
@@ -1709,7 +2891,6 @@ class BribeYourselfFit {
         exerciseHeight
       );
 
-      // Water bar (normalized)
       const waterHeight = (data.water / maxWater) * chartHeight;
       ctx.fillStyle = getComputedStyle(
         document.documentElement
@@ -1721,7 +2902,6 @@ class BribeYourselfFit {
         waterHeight
       );
 
-      // Date labels
       ctx.fillStyle = getComputedStyle(
         document.documentElement
       ).getPropertyValue('--text-secondary');
@@ -1734,10 +2914,8 @@ class BribeYourselfFit {
       ctx.fillText(dateLabel, x + barWidth / 2, height - padding.bottom + 20);
     });
 
-    // Draw legend
     this.drawActivityLegend(ctx, width, height, padding);
 
-    // Update period indicator
     const periodEl = document.getElementById('activityPeriod');
     if (periodEl) {
       periodEl.textContent =
@@ -1781,13 +2959,11 @@ class BribeYourselfFit {
 
     let legendX = padding.left;
     legendItems.forEach((item) => {
-      // Color square
       ctx.fillStyle = getComputedStyle(
         document.documentElement
       ).getPropertyValue(item.color);
       ctx.fillRect(legendX, legendY, 12, 12);
 
-      // Label
       ctx.fillStyle = getComputedStyle(
         document.documentElement
       ).getPropertyValue('--text-primary');
@@ -1883,7 +3059,6 @@ class BribeYourselfFit {
 
     if (!calendarContainer || !monthNameEl) return;
 
-    // Update month display
     const monthNames = [
       'January',
       'February',
@@ -1900,14 +3075,11 @@ class BribeYourselfFit {
     ];
     monthNameEl.textContent = `${monthNames[month]} ${year}`;
 
-    // Clear existing calendar
     calendarContainer.innerHTML = '';
 
-    // Create calendar grid
     const calendarGrid = document.createElement('div');
     calendarGrid.className = 'calendar-grid';
 
-    // Add day headers
     const dayHeaders = document.createElement('div');
     dayHeaders.className = 'calendar-header';
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -1920,20 +3092,17 @@ class BribeYourselfFit {
 
     calendarContainer.appendChild(dayHeaders);
 
-    // Calculate first day of month and number of days
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = (firstDay.getDay() + 6) % 7; // Adjust for Monday start
+    const startingDayOfWeek = (firstDay.getDay() + 6) % 7;
 
-    // Add empty cells for days before month starts
     for (let i = 0; i < startingDayOfWeek; i++) {
       const emptyDay = document.createElement('div');
       emptyDay.className = 'calendar-day other-month';
       calendarGrid.appendChild(emptyDay);
     }
 
-    // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const dayEl = document.createElement('div');
       dayEl.className = 'calendar-day';
@@ -1945,7 +3114,6 @@ class BribeYourselfFit {
       )}-${String(day).padStart(2, '0')}`;
       const dayLog = this.dailyLogs[dateString];
 
-      // Apply styling based on streak completion
       if (dateString === this.currentDate) {
         dayEl.classList.add('today');
       }
@@ -1985,6 +3153,9 @@ class BribeYourselfFit {
       all: Object.values(goalsmet).every((met) => met) && weeklyWeight,
     };
   }
+
+  // Include all rewards/milestone methods from the original version
+  // These remain identical as they handle the gamification logic
 
   /**
    * Load rewards tab content
@@ -2032,7 +3203,7 @@ class BribeYourselfFit {
         description: 'Complete 100 consecutive days of goals',
       },
 
-      // Weight loss milestones (10 lb increments)
+      // Weight loss milestones
       ...this.generateWeightMilestones(),
     ];
   }
@@ -2047,9 +3218,8 @@ class BribeYourselfFit {
     const totalWeightToLose =
       this.currentUser.startingWeight - this.currentUser.goalWeight;
 
-    if (totalWeightToLose <= 0) return milestones; // No weight loss needed
+    if (totalWeightToLose <= 0) return milestones;
 
-    // 10 lb milestones
     for (let lost = 10; lost <= totalWeightToLose; lost += 10) {
       milestones.push({
         type: 'weight',
@@ -2059,7 +3229,6 @@ class BribeYourselfFit {
       });
     }
 
-    // Bigger milestones for 25 lb increments
     for (let lost = 25; lost <= totalWeightToLose; lost += 25) {
       milestones.push({
         type: 'weight',
@@ -2070,7 +3239,6 @@ class BribeYourselfFit {
       });
     }
 
-    // Even bigger milestones for 50 lb increments
     for (let lost = 50; lost <= totalWeightToLose; lost += 50) {
       milestones.push({
         type: 'weight',
@@ -2093,12 +3261,10 @@ class BribeYourselfFit {
 
     container.innerHTML = '';
 
-    // Initialize default milestones if they don't exist
     if (!this.defaultMilestones) {
       this.initializeDefaultMilestones();
     }
 
-    // Safety check in case defaultMilestones is still undefined
     if (!this.defaultMilestones || !Array.isArray(this.defaultMilestones)) {
       container.innerHTML =
         '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">Unable to load milestones. Please refresh the page.</p>';
@@ -2138,27 +3304,26 @@ class BribeYourselfFit {
       ? 'achieved'
       : 'pending';
 
-    // Get custom reward for this milestone
     const customReward = this.getCustomRewardForMilestone(milestone);
     const rewardText = customReward
       ? customReward.description
       : 'Set custom reward...';
 
     el.innerHTML = `
-            <div class="milestone-header">
-                <div class="milestone-title">${milestone.title}</div>
-                <div class="milestone-status ${statusClass}">${statusText}</div>
-            </div>
-            <div class="milestone-description">${milestone.description}</div>
-            <div class="milestone-reward">
-                <div class="reward-text">${rewardText}</div>
-                ${
-                  isAchieved && !isClaimed
-                    ? `<button class="claim-btn" onclick="app.claimMilestone('${milestone.type}', ${milestone.value})">Claim Reward</button>`
-                    : ''
-                }
-            </div>
-        `;
+      <div class="milestone-header">
+        <div class="milestone-title">${milestone.title}</div>
+        <div class="milestone-status ${statusClass}">${statusText}</div>
+      </div>
+      <div class="milestone-description">${milestone.description}</div>
+      <div class="milestone-reward">
+        <div class="reward-text">${rewardText}</div>
+        ${
+          isAchieved && !isClaimed
+            ? `<button class="claim-btn" onclick="app.claimMilestone('${milestone.type}', ${milestone.value})">Claim Reward</button>`
+            : ''
+        }
+      </div>
+    `;
 
     return el;
   }
@@ -2178,7 +3343,7 @@ class BribeYourselfFit {
   }
 
   /**
-   * Check if milestone has been claimed (exists in achievements)
+   * Check if milestone has been claimed
    */
   isMilestoneClaimedInAchievements(milestone) {
     return this.achievements.some(
@@ -2203,13 +3368,12 @@ class BribeYourselfFit {
   /**
    * Claim milestone reward
    */
-  claimMilestone(type, value) {
+  async claimMilestone(type, value) {
     const milestone = this.defaultMilestones.find(
       (m) => m.type === type && m.value === value
     );
     if (!milestone || !this.isMilestoneAchieved(milestone)) return;
 
-    // Add to achievements
     const achievement = {
       type: milestone.type,
       value: milestone.value,
@@ -2222,12 +3386,15 @@ class BribeYourselfFit {
     };
 
     this.achievements.push(achievement);
-    this.saveData();
+    this.saveLocalData();
 
-    // Show celebration modal
+    // Add to sync queue and sync to cloud
+    this.addToSyncQueue('achievement', achievement);
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      await this.saveToCloud();
+    }
+
     this.showAchievementModal(achievement);
-
-    // Re-render milestones
     this.renderDefaultMilestones();
     this.renderAchievementHistory();
   }
@@ -2235,7 +3402,7 @@ class BribeYourselfFit {
   /**
    * Handle custom reward form submission
    */
-  handleCustomReward(e) {
+  async handleCustomReward(e) {
     e.preventDefault();
 
     const formData = new FormData(e.target);
@@ -2253,7 +3420,6 @@ class BribeYourselfFit {
       createdDate: new Date().toISOString(),
     };
 
-    // Add type-specific criteria
     if (rewardType === 'streak') {
       reward.streakDays = parseInt(formData.get('streakDays'));
       if (!reward.streakDays || reward.streakDays < 1) {
@@ -2276,9 +3442,14 @@ class BribeYourselfFit {
     }
 
     this.customRewards.push(reward);
-    this.saveData();
+    this.saveLocalData();
 
-    // Reset form and update display
+    // Add to sync queue and sync to cloud
+    this.addToSyncQueue('customReward', reward);
+    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+      await this.saveToCloud();
+    }
+
     e.target.reset();
     this.updateRewardCriteria();
     this.renderCustomRewards();
@@ -2342,14 +3513,14 @@ class BribeYourselfFit {
     }
 
     el.innerHTML = `
-            <div class="reward-info">
-                <div class="reward-title">${reward.description}</div>
-                <div class="reward-criteria-text">${criteriaText}</div>
-            </div>
-            <div class="reward-actions">
-                <button class="btn btn-small btn-danger" onclick="app.deleteCustomReward(${index})">Delete</button>
-            </div>
-        `;
+      <div class="reward-info">
+        <div class="reward-title">${reward.description}</div>
+        <div class="reward-criteria-text">${criteriaText}</div>
+      </div>
+      <div class="reward-actions">
+        <button class="btn btn-small btn-danger" onclick="app.deleteCustomReward(${index})">Delete</button>
+      </div>
+    `;
 
     return el;
   }
@@ -2357,10 +3528,17 @@ class BribeYourselfFit {
   /**
    * Delete custom reward
    */
-  deleteCustomReward(index) {
+  async deleteCustomReward(index) {
     if (confirm('Are you sure you want to delete this reward?')) {
       this.customRewards.splice(index, 1);
-      this.saveData();
+      this.saveLocalData();
+
+      // Add to sync queue and sync to cloud
+      this.addToSyncQueue('deleteCustomReward', { index });
+      if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
+        await this.saveToCloud();
+      }
+
       this.renderCustomRewards();
       this.renderDefaultMilestones();
       this.showSuccess('Custom reward deleted.');
@@ -2382,7 +3560,6 @@ class BribeYourselfFit {
       return;
     }
 
-    // Sort achievements by date (newest first)
     const sortedAchievements = [...this.achievements].sort(
       (a, b) => new Date(b.claimedDate) - new Date(a.claimedDate)
     );
@@ -2406,14 +3583,14 @@ class BribeYourselfFit {
       : '';
 
     el.innerHTML = `
-            <div class="achievement-header">
-                <div class="achievement-title">${achievement.title}</div>
-                <div class="achievement-date">${claimedDate}</div>
-            </div>
-            <div class="achievement-description">
-                ${achievement.description}${rewardText}
-            </div>
-        `;
+      <div class="achievement-header">
+        <div class="achievement-title">${achievement.title}</div>
+        <div class="achievement-date">${claimedDate}</div>
+      </div>
+      <div class="achievement-description">
+        ${achievement.description}${rewardText}
+      </div>
+    `;
 
     return el;
   }
@@ -2424,7 +3601,6 @@ class BribeYourselfFit {
   checkAchievements() {
     const newAchievements = [];
 
-    // Check streak milestones
     this.defaultMilestones
       .filter((m) => m.type === 'streak')
       .forEach((milestone) => {
@@ -2436,7 +3612,6 @@ class BribeYourselfFit {
         }
       });
 
-    // Check weight milestones
     this.defaultMilestones
       .filter((m) => m.type === 'weight')
       .forEach((milestone) => {
@@ -2448,7 +3623,6 @@ class BribeYourselfFit {
         }
       });
 
-    // Show achievement notifications
     if (newAchievements.length > 0) {
       newAchievements.forEach((achievement) => {
         this.showAchievementNotification(achievement);
@@ -2473,14 +3647,12 @@ class BribeYourselfFit {
    * Show achievement modal with celebration
    */
   showAchievementModal(achievement) {
-    // Create modal if it doesn't exist
     let modal = document.getElementById('achievementModal');
     if (!modal) {
       modal = this.createAchievementModal();
       document.body.appendChild(modal);
     }
 
-    // Update modal content
     const title = modal.querySelector('.modal-title');
     const message = modal.querySelector('.modal-message');
 
@@ -2492,7 +3664,6 @@ class BribeYourselfFit {
 
     message.textContent = `${achievement.title} - ${achievement.description}.${rewardText}`;
 
-    // Show modal with celebration animation
     modal.classList.add('show');
     document.body.classList.add('celebrating');
 
@@ -2510,12 +3681,12 @@ class BribeYourselfFit {
     modal.className = 'modal';
 
     modal.innerHTML = `
-            <div class="modal-content">
-                <h2 class="modal-title">Achievement!</h2>
-                <p class="modal-message"></p>
-                <button class="modal-btn" onclick="app.closeAchievementModal()">Awesome!</button>
-            </div>
-        `;
+      <div class="modal-content">
+        <h2 class="modal-title">Achievement!</h2>
+        <p class="modal-message"></p>
+        <button class="modal-btn" onclick="app.closeAchievementModal()">Awesome!</button>
+      </div>
+    `;
 
     return modal;
   }
@@ -2529,459 +3700,29 @@ class BribeYourselfFit {
       modal.classList.remove('show');
     }
   }
-
-  /**
-   * Toggle theme between light and dark
-   */
-  toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('byf_theme', newTheme);
-
-    this.updateThemeToggle(newTheme);
-
-    // Update settings if user manually toggles (override system preference)
-    this.settings.themePreference = newTheme;
-    this.saveSettings();
-
-    // Update radio button in settings
-    const themeRadio = document.querySelector(`input[value="${newTheme}"]`);
-    if (themeRadio) {
-      themeRadio.checked = true;
-    }
-  }
-
-  /**
-   * Update theme toggle button text
-   */
-  updateThemeToggle(theme) {
-    const themeToggle = document.getElementById('themeToggle');
-    if (themeToggle) {
-      themeToggle.textContent =
-        theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
-    }
-  }
-
-  /**
-   * Update current date display
-   */
-  updateCurrentDate() {
-    const currentDateEl = document.getElementById('currentDate');
-    if (currentDateEl) {
-      const today = new Date();
-      currentDateEl.textContent = today.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-    }
-  }
-
-  /**
-   * Show setup screen
-   */
-  showSetupScreen() {
-    document.getElementById('setupScreen').classList.remove('hidden');
-    document.getElementById('appScreen').classList.add('hidden');
-  }
-
-  /**
-   * Show main app screen - UPDATED VERSION
-   */
-  showAppScreen() {
-    document.getElementById('setupScreen').classList.add('hidden');
-    document.getElementById('appScreen').classList.remove('hidden');
-
-    // Initialize default milestones when showing app
-    this.initializeDefaultMilestones();
-  }
-
-  /**
-   * Show success message
-   */
-  showSuccess(message, duration = 3000) {
-    // Remove existing success messages
-    const existingMessages = document.querySelectorAll('.success-message');
-    existingMessages.forEach((msg) => msg.remove());
-
-    // Create new success message
-    const successEl = document.createElement('div');
-    successEl.className = 'success-message';
-    successEl.textContent = message;
-
-    document.body.appendChild(successEl);
-
-    // Show message
-    setTimeout(() => {
-      successEl.classList.add('show');
-    }, 100);
-
-    // Hide and remove message
-    setTimeout(() => {
-      successEl.classList.remove('show');
-      setTimeout(() => {
-        if (successEl.parentNode) {
-          successEl.parentNode.removeChild(successEl);
-        }
-      }, 300);
-    }, duration);
-  }
-
-  /**
-   * Show error message
-   */
-  showError(message) {
-    alert(`Error: ${message}`);
-  }
-
-  /**
-   * Export data as JSON
-   */
-  exportData() {
-    const exportData = {
-      user: this.currentUser,
-      dailyLogs: this.dailyLogs,
-      streaks: this.streaks,
-      customRewards: this.customRewards,
-      achievements: this.achievements,
-      exportDate: new Date().toISOString(),
-      version: '1.0',
-    };
-
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `bribeYourselfFit_backup_${
-      new Date().toISOString().split('T')[0]
-    }.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    this.showSuccess('Data exported successfully!');
-  }
-
-  /**
-   * Import data from JSON file
-   */
-  importData(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const importedData = JSON.parse(e.target.result);
-
-        // Validate imported data structure
-        if (!this.validateImportData(importedData)) {
-          this.showError('Invalid backup file format');
-          return;
-        }
-
-        // Confirm import
-        if (
-          !confirm(
-            'This will replace all current data. Are you sure you want to import?'
-          )
-        ) {
-          return;
-        }
-
-        // Import data
-        this.currentUser = importedData.user;
-        this.dailyLogs = importedData.dailyLogs || {};
-        this.streaks = importedData.streaks || this.initializeStreaks();
-        this.customRewards = importedData.customRewards || [];
-        this.achievements = importedData.achievements || [];
-
-        // Save imported data
-        this.saveData();
-
-        // Refresh display
-        this.updateDashboard();
-        this.initializeDefaultMilestones();
-
-        this.showSuccess('Data imported successfully!');
-
-        // Refresh page to ensure clean state
-        setTimeout(() => {
-          location.reload();
-        }, 1500);
-      } catch (error) {
-        console.error('Import error:', error);
-        this.showError('Failed to import data. Please check the file format.');
-      }
-    };
-
-    reader.readAsText(file);
-  }
-
-  /**
-   * Validate imported data structure
-   */
-  validateImportData(data) {
-    return (
-      data &&
-      data.user &&
-      typeof data.user.startingWeight === 'number' &&
-      typeof data.user.goalWeight === 'number' &&
-      typeof data.user.dailySteps === 'number' &&
-      typeof data.user.dailyExercise === 'number' &&
-      typeof data.user.dailyWater === 'number'
-    );
-  }
-
-  /**
-   * Reset all data (updated version)
-   */
-  resetAllData() {
-    if (
-      !confirm(
-        'This will delete ALL data including your profile, logs, and achievements. This cannot be undone. Are you sure?'
-      )
-    ) {
-      return;
-    }
-
-    if (!confirm('Really sure? This will permanently delete everything!')) {
-      return;
-    }
-
-    // Clear localStorage - add settings to the list
-    const keysToRemove = [
-      'byf_user',
-      'byf_dailyLogs',
-      'byf_streaks',
-      'byf_customRewards',
-      'byf_achievements',
-      'byf_settings', // Add this line
-      'byf_theme', // Add this line
-    ];
-    keysToRemove.forEach((key) => localStorage.removeItem(key));
-
-    // Reset app state
-    this.currentUser = null;
-    this.dailyLogs = {};
-    this.streaks = {};
-    this.customRewards = [];
-    this.achievements = [];
-    this.settings = this.getDefaultSettings(); // Add this line
-
-    this.showSuccess('All data has been reset. Redirecting to setup...');
-
-    // Refresh page after short delay
-    setTimeout(() => {
-      location.reload();
-    }, 2000);
-  }
-
-  /**
-   * Get app statistics for debugging/info
-   */
-  getAppStats() {
-    const startTime = performance.now(); // Add this line
-    const totalLogs = Object.keys(this.dailyLogs).length;
-    const weightLogs = Object.values(this.dailyLogs).filter(
-      (log) => log.weight !== null
-    ).length;
-    const totalExerciseMinutes = Object.values(this.dailyLogs).reduce(
-      (sum, log) => sum + (log.exerciseMinutes || 0),
-      0
-    );
-    const totalSteps = Object.values(this.dailyLogs).reduce(
-      (sum, log) => sum + (log.steps || 0),
-      0
-    );
-    const totalWater = Object.values(this.dailyLogs).reduce(
-      (sum, log) => sum + (log.water || 0),
-      0
-    );
-
-    const stats = {
-      profileCreated: this.currentUser?.setupDate,
-      totalDaysLogged: totalLogs,
-      weightEntriesLogged: weightLogs,
-      currentStreak: this.streaks.overall,
-      longestStreak: Math.max(
-        this.streaks.steps,
-        this.streaks.exercise,
-        this.streaks.water,
-        this.streaks.wellness,
-        this.streaks.overall
-      ),
-      totalExerciseMinutes,
-      totalSteps,
-      totalWaterLiters: totalWater,
-      achievementsUnlocked: this.achievements.length,
-      customRewards: this.customRewards.length,
-    };
-
-    if (this.currentUser) {
-      stats.weightProgress = {
-        starting: this.currentUser.startingWeight,
-        current: this.currentUser.currentWeight,
-        goal: this.currentUser.goalWeight,
-        lost: this.currentUser.startingWeight - this.currentUser.currentWeight,
-        remaining: Math.abs(
-          this.currentUser.currentWeight - this.currentUser.goalWeight
-        ),
-      };
-    }
-
-    const loadTime = performance.now() - startTime;
-    stats.performanceMs = Math.round(loadTime * 100) / 100;
-
-    console.table(stats);
-    return stats;
-  }
-
-  // Add these to your BribeYourselfFit class:
-
-  /**
-   * Handle import data button click
-   */
-  handleImportData() {
-    const fileInput = document.getElementById('importFile');
-    const file = fileInput.files[0];
-
-    if (!file) {
-      this.showError('Please select a backup file first');
-      return;
-    }
-
-    this.importData(file);
-  }
-
-  /**
-   * Reset functions for danger zone
-   */
-  resetStreaks() {
-    if (!confirm('This will reset all your streaks to 0. Continue?')) return;
-
-    this.streaks = this.initializeStreaks();
-    this.saveData();
-    this.updateDashboard();
-    this.showSuccess('All streaks have been reset');
-  }
-
-  clearTodaysLog() {
-    if (!confirm("This will clear today's fitness log. Continue?")) return;
-
-    delete this.dailyLogs[this.currentDate];
-    this.saveData();
-    this.updateDashboard();
-    this.showSuccess("Today's log has been cleared");
-  }
-
-  resetProfile() {
-    if (!confirm('This will reset your profile but keep your logs. Continue?'))
-      return;
-
-    // Save current logs and achievements
-    const savedLogs = { ...this.dailyLogs };
-    const savedAchievements = [...this.achievements];
-
-    // Reset to setup screen
-    this.currentUser = null;
-    this.saveData();
-    this.showSetupScreen();
-
-    this.showSuccess('Profile reset. Please set up your goals again.');
-  }
-
-  resetLogs() {
-    if (
-      !confirm(
-        'This will delete ALL daily logs but keep your profile. Continue?'
-      )
-    )
-      return;
-    if (!confirm('Are you sure? This cannot be undone!')) return;
-
-    this.dailyLogs = {};
-    this.streaks = this.initializeStreaks();
-    this.achievements = [];
-    this.saveData();
-    this.updateDashboard();
-    this.showSuccess('All daily logs have been cleared');
-  }
-
-  /**
-   * Debug method to check form and data state
-   */
-  debugFormState() {
-    console.log('=== FORM DEBUG INFO ===');
-    console.log('Current date:', this.currentDate);
-    console.log("Today's log:", this.dailyLogs[this.currentDate]);
-    console.log('All daily logs:', this.dailyLogs);
-
-    // Check form elements
-    const weightInput = document.getElementById('todayWeight');
-    const stepsInput = document.getElementById('todaySteps');
-    const exerciseInput = document.getElementById('todayExerciseMinutes');
-    const waterInput = document.getElementById('todayWater');
-
-    console.log('Form elements found:', {
-      weight: !!weightInput,
-      steps: !!stepsInput,
-      exercise: !!exerciseInput,
-      water: !!waterInput,
-    });
-
-    console.log('Form values:', {
-      weight: weightInput?.value,
-      steps: stepsInput?.value,
-      exercise: exerciseInput?.value,
-      water: waterInput?.value,
-    });
-
-    console.log(
-      'Exercise checkboxes:',
-      Array.from(document.querySelectorAll('.exercise-checkbox:checked')).map(
-        (cb) => cb.value
-      )
-    );
-
-    console.log(
-      'Wellness checkboxes:',
-      Array.from(document.querySelectorAll('.wellness-checkbox:checked')).map(
-        (cb) => cb.dataset.wellness
-      )
-    );
-    console.log('=====================');
-  }
 }
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   // Create global app instance
-  window.app = new BribeYourselfFit();
+  window.app = new BribeYourselfFitCloud();
 
-  // Add some helpful global functions for development
-  window.exportData = () => app.exportData();
-  window.resetData = () => app.resetAllData();
+  // Add helpful global functions for development and user access
+  window.exportData = () => app.exportLocalData();
+  window.exportCloudData = () => app.exportCloudData();
+  window.forceSync = () => app.forceSync();
+  window.testConnection = () => app.testCloudConnection();
   window.getStats = () => app.getAppStats();
-  window.debugForm = () => app.debugFormState();
+  window.resetData = () => app.resetAllData();
 
-  // Add import function handler
-  window.handleFileImport = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      app.importData(file);
-    }
-  };
-
-  console.log('🎉 BribeYourselfFit initialized successfully!');
-  console.log('Development commands available:');
-  console.log('- exportData() - Export your data');
-  console.log('- resetData() - Reset all data (careful!)');
+  console.log('🎉 BribeYourselfFit Cloud initialized successfully!');
+  console.log('Cloud commands available:');
+  console.log('- exportData() - Export local data backup');
+  console.log('- exportCloudData() - Export cloud data');
+  console.log('- forceSync() - Force immediate sync');
+  console.log('- testConnection() - Test cloud connection');
   console.log('- getStats() - View app statistics');
-  console.log('- debugForm() - Debug form state and data');
+  console.log('- resetData() - Reset all data (careful!)');
 });
 
 /**
@@ -3010,6 +3751,10 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         if (window.app) window.app.toggleTheme();
         break;
+      case 's':
+        e.preventDefault();
+        if (window.app) window.app.forceSync();
+        break;
     }
   }
 });
@@ -3018,44 +3763,17 @@ document.addEventListener('keydown', (e) => {
  * Handle window beforeunload to prevent data loss
  */
 window.addEventListener('beforeunload', (e) => {
-  // Check if there are unsaved changes (basic check)
-  const forms = document.querySelectorAll('form');
-  let hasUnsavedData = false;
-
-  forms.forEach((form) => {
-    const formData = new FormData(form);
-    for (let [key, value] of formData.entries()) {
-      if (value && value.toString().trim() !== '') {
-        hasUnsavedData = true;
-        break;
-      }
+  if (window.app && window.app.syncQueue && window.app.syncQueue.length > 0) {
+    const unsyncedItems = window.app.syncQueue.filter(
+      (item) => !item.synced
+    ).length;
+    if (unsyncedItems > 0) {
+      e.preventDefault();
+      e.returnValue = `You have ${unsyncedItems} unsynced changes. Are you sure you want to leave?`;
+      return e.returnValue;
     }
-  });
-
-  if (hasUnsavedData) {
-    e.preventDefault();
-    e.returnValue = 'You have unsaved data. Are you sure you want to leave?';
-    return e.returnValue;
   }
 });
-
-/**
- * Performance monitoring
- */
-const performanceObserver = new PerformanceObserver((list) => {
-  const entries = list.getEntries();
-  entries.forEach((entry) => {
-    if (entry.entryType === 'navigation') {
-      console.log(
-        `Page load time: ${entry.loadEventEnd - entry.loadEventStart}ms`
-      );
-    }
-  });
-});
-
-if (typeof PerformanceObserver !== 'undefined') {
-  performanceObserver.observe({ entryTypes: ['navigation'] });
-}
 
 /**
  * Error handling for uncaught errors
@@ -3076,117 +3794,41 @@ window.addEventListener('unhandledrejection', (e) => {
   }
 });
 
-// Fix for PWA install prompt errors
-BribeYourselfFit.prototype.showInstallPrompt = function () {
-  if (this.deferredPrompt) {
-    // Only show install button if user hasn't dismissed it
-    const existingBtn = document.getElementById('pwa-install-btn');
-    if (existingBtn) return; // Don't create multiple buttons
-
-    const installBtn = document.createElement('button');
-    installBtn.id = 'pwa-install-btn';
-    installBtn.textContent = '📱 Install App';
-    installBtn.className = 'btn btn-primary';
-    installBtn.style.cssText =
-      'position: fixed; bottom: 20px; right: 20px; z-index: 1000; opacity: 0.9;';
-
-    installBtn.addEventListener('click', async () => {
-      try {
-        if (this.deferredPrompt) {
-          this.deferredPrompt.prompt();
-          const result = await this.deferredPrompt.userChoice;
-          console.log('PWA install result:', result);
-          this.deferredPrompt = null;
-          installBtn.remove();
-        }
-      } catch (error) {
-        console.error('Install prompt error:', error);
-        installBtn.remove();
-      }
-    });
-
-    // Auto-remove after 15 seconds
+/**
+ * Network status monitoring for sync
+ */
+window.addEventListener('online', () => {
+  console.log('Network connection restored');
+  if (window.app && window.app.autoSyncEnabled) {
     setTimeout(() => {
-      if (installBtn.parentNode) {
-        installBtn.remove();
-      }
-    }, 15000);
-
-    document.body.appendChild(installBtn);
+      window.app.testCloudConnection().then((connected) => {
+        if (connected && window.app.syncQueue.length > 0) {
+          window.app.forceSync();
+        }
+      });
+    }, 1000);
   }
-};
+});
 
-// Debug function to check form state before saving
-BribeYourselfFit.prototype.debugFormSave = function () {
-  console.log('=== FORM SAVE DEBUG ===');
-  console.log('Current date:', this.currentDate);
-  console.log('Form elements:', {
-    weight: document.getElementById('todayWeight')?.value,
-    steps: document.getElementById('todaySteps')?.value,
-    exercise: document.getElementById('todayExerciseMinutes')?.value,
-    water: document.getElementById('todayWater')?.value,
-  });
-  console.log('Current user:', this.currentUser);
-  console.log('Daily logs before save:', Object.keys(this.dailyLogs).length);
-  console.log('=====================');
-};
+window.addEventListener('offline', () => {
+  console.log('Network connection lost');
+  if (window.app) {
+    window.app.updateSyncStatus(
+      'offline',
+      'Offline - will sync when reconnected'
+    );
+  }
+});
 
 /**
- * Utility functions for date manipulation and formatting
+ * PWA Event Listeners
  */
-const DateUtils = {
-  /**
-   * Format date for display
-   */
-  formatDate(dateString, options = {}) {
-    const date = new Date(dateString);
-    const defaultOptions = {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    };
-    return date.toLocaleDateString('en-US', { ...defaultOptions, ...options });
-  },
-
-  /**
-   * Get days between two dates
-   */
-  daysBetween(date1, date2) {
-    const oneDay = 24 * 60 * 60 * 1000;
-    const firstDate = new Date(date1);
-    const secondDate = new Date(date2);
-    return Math.round(Math.abs((firstDate - secondDate) / oneDay));
-  },
-
-  /**
-   * Check if date is today
-   */
-  isToday(dateString) {
-    const today = new Date().toISOString().split('T')[0];
-    return dateString === today;
-  },
-
-  /**
-   * Get week number
-   */
-  getWeekNumber(dateString) {
-    const date = new Date(dateString);
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-  },
-};
-
-// Make DateUtils available globally
-window.DateUtils = DateUtils;
-
-// PWA Event Listeners - Fixed Version
 window.addEventListener('beforeinstallprompt', (e) => {
   console.log('PWA install prompt available');
   e.preventDefault();
-  if (window.app && typeof window.app.showInstallPrompt === 'function') {
+  if (window.app) {
     window.app.deferredPrompt = e;
-    window.app.showInstallPrompt();
+    // Could show install button here
   }
 });
 
@@ -3194,5 +3836,24 @@ window.addEventListener('appinstalled', () => {
   console.log('PWA installed successfully');
   if (window.app) {
     window.app.deferredPrompt = null;
+    window.app.showSuccess(
+      '🎉 App installed! You can now use BribeYourselfFit offline.'
+    );
   }
 });
+
+/**
+ * Service Worker registration for PWA functionality
+ */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('./sw.js')
+      .then((registration) => {
+        console.log('SW registered: ', registration);
+      })
+      .catch((registrationError) => {
+        console.log('SW registration failed: ', registrationError);
+      });
+  });
+}
