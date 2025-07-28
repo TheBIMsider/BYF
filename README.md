@@ -62,6 +62,7 @@ This demonstrates how AI tools enable domain experts to build sophisticated clou
 
 ### 🎯 **Core Features**
 - **Daily Logging**: Weight, steps, exercise, water intake
+- **Weekly Logging**: Weight, because daily fluctuations are noise
 - **Wellness Scoring**: 5-point daily wellness checklist
 - **Streak Tracking**: Individual and overall consecutive day streaks
 - **Progress Charts**: Weight trends and activity summaries
