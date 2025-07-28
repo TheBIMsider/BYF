@@ -394,4 +394,4 @@ We'd love to hear from you! [Create an issue](https://github.com/TheBIMsider/BYF
 
 ---
 
-*Made with ❤️ for the fitness and open-source communities*
+*Made with ❤️ & 🤖 assistance for the fitness and open-source communities*
