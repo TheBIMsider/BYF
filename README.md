@@ -92,7 +92,7 @@ This project was created using modern AI-powered development tools, demonstratin
 
 ### **🎯 Core Tracking**
 - **Daily Logging**: Weight (weekly), steps, exercise minutes, water intake
-- **Exercise Types**: Multi-select from cardio, strength, yoga, sports, walking, other
+- **Exercise Types**: Multi-select from cardio, strength, yoga, sports, walking, cycling, swimming, other
 - **Food & Wellness Score**: 5-point daily checklist system
   - ✅ Avoided sugary drinks
   - ✅ 5+ servings fruits & vegetables  
