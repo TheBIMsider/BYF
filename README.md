@@ -6,7 +6,7 @@
 
 Sometimes when you're trying to lose weight or be more active, you need accountability. But accountability means different things to different people. For some, it's just tracking numbers. For others - like me - you need an incentive, a motive, a real reason for doing something.
 
-Back in the 90s and 2000s when The Biggest Loser was popular, friends would get together for weight loss competitions. There'd be something on the line - $50, a night out, bragging rights - and the winner would take it all. That external motivation helped people actually track their stats, log their weights, and do the work.
+Back in the 2000s when The Biggest Loser was popular, friends would get together for weight loss competitions. There'd be something on the line - $50, a night out, bragging rights - and the winner would take it all. That external motivation helped people actually track their stats, log their weights, and do the work.
 
 **But here's the thing:** Not everyone is motivated by money or new clothes or the same rewards. Every person's fitness journey is different.
 
