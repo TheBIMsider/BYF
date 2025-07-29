@@ -22,7 +22,7 @@ This showcases how AI tools enable domain experts to build sophisticated databas
 ## 🚀 Quick Setup
 
 ### 1. Copy the Airtable Base Template
-1. **[Use this Airtable template]([https://github.com/TheBIMsider/BYF/tree/airtable-version](https://airtable.com/appmoO7oRBIkwdegp/shrI1iK3qEtLWCTwQ)** to copy the pre-configured base to your account
+1. **[Use this Airtable template](https://airtable.com/appmoO7oRBIkwdegp/shrI1iK3qEtLWCTwQ)** to copy the pre-configured base to your account
 2. **Rename your base** to something like "My BribeYourselfFit Data"
 3. **Note your Base ID** from the URL (starts with `app...`)
 
