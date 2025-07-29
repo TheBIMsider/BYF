@@ -434,12 +434,13 @@ BSD-3-Clause License - see [LICENSE](LICENSE) file for details.
 
 ## 🚀 Ready to Start?
 
-1. **[Copy the Airtable base template](https://github.com/TheBIMsider/BYF/tree/airtable-version)** to your account
-2. **Fork this repo** and switch to `airtable-version` branch
-3. **Enable GitHub Pages** in repository settings  
-4. **Create your Personal Access Token** at airtable.com/create/tokens
-5. **Enter your credentials** in the deployed app
-6. **Start your fitness journey with database power!** 🎯
+1. **[Copy the Airtable base template](https://airtable.com/appmoO7oRBIkwdegp/shrI1iK3qEtLWCTwQ)** to your account
+2. **Review the sample data**. After reviewing, delete the sample data, but leave the table structure intact.
+3. **Fork this repo** and switch to `airtable-version` branch
+4. **Enable GitHub Pages** in repository settings  
+5. **Create your Personal Access Token** at airtable.com/create/tokens
+6. **Enter your credentials** in the deployed app
+7. **Start your fitness journey with database power!** 🎯
 
 **Questions?** Create an issue on GitHub - we're here to help! 💪
 
