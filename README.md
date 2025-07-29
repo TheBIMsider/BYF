@@ -1,4 +1,4 @@
-# BribeYourselfFit - JSONBin Cloud Version v1.1.0
+# BribeYourselfFit - JSONBin Cloud Version v1.1
 
 🌐 **Cloud-synced fitness tracking with JSONBin.io storage**
 
@@ -14,8 +14,6 @@ This cloud version was developed using cutting-edge AI-powered development tools
 - 🏗️ **Human Expertise**: AECO/BIM domain knowledge by [TheBIMsider](https://bio.link/thebimsider)
 
 This demonstrates how AI tools enable domain experts to build sophisticated cloud-integrated applications with modern web technologies and API patterns.
-
-<img width="1261" height="1038" alt="BYF_JSONBin_V1-1" src="https://github.com/user-attachments/assets/a4eb69c0-72ad-43b4-9254-cdbc1bf71e72" />
 
 ---
 
@@ -61,7 +59,7 @@ This demonstrates how AI tools enable domain experts to build sophisticated clou
 - 📊 **Real-time sync status** indicators
 
 ### 🎯 **Core Features**
-- **Daily Logging**: Weight, steps, exercise, water intake
+- **Daily Logging**: Steps, exercise, water intake
 - **Weekly Logging**: Weight, because daily fluctuations are noise
 - **Wellness Scoring**: 5-point daily wellness checklist
 - **Streak Tracking**: Individual and overall consecutive day streaks
@@ -69,7 +67,7 @@ This demonstrates how AI tools enable domain experts to build sophisticated clou
 - **Gamification**: Achievements, milestones, and custom rewards
 - **Data Export**: Download your data as JSON backup
 
-### ⚙️ **Advanced Settings** *(v1.1.0 Features)*
+### ⚙️ **Advanced Settings** *(v1.1 Features)*
 - **App Preferences**: Theme selection, units (Imperial/Metric), date formats, week start day
 - **Goal Management**: Modify daily targets and weight goals without losing streak history
 - **Enhanced Data Management**: Complete backup/restore system with import/export for cloud migration
@@ -83,9 +81,9 @@ This demonstrates how AI tools enable domain experts to build sophisticated clou
 - **Dashboard**: Daily logging and streak overview
 - **Progress**: Charts and analytics
 - **Rewards**: Achievements and milestone management
-- **Settings**: Comprehensive preferences, goal management, and cloud controls *(v1.1.0)*
+- **Settings**: Comprehensive preferences, goal management, and cloud controls *(v1.1)*
 
-## ⚙️ **Settings & Configuration** *(v1.1.0)*
+## ⚙️ **Settings & Configuration** *(v1.1)*
 
 ### **☁️ Cloud Sync Settings**
 - **Force Sync**: Trigger immediate cloud sync
@@ -165,7 +163,7 @@ Your fitness data is stored as a single JSON object in JSONBin.io:
   "achievements": [ "unlocked achievements..." ],
   "settings": { "app preferences and thresholds..." },
   "lastSync": "2025-07-27T...",
-  "version": "1.1.0-cloud"
+  "version": "1.1-cloud"
 }
 ```
 
@@ -173,7 +171,7 @@ Your fitness data is stored as a single JSON object in JSONBin.io:
 Typical usage per month:
 - **Daily logging**: ~30 requests
 - **Loading app**: ~30 requests  
-- **Settings/goals**: ~15 requests *(new in v1.1.0)*
+- **Settings/goals**: ~15 requests *(new in v1.1)*
 - **Rewards/achievements**: ~10 requests
 - **Total**: ~85 requests/month (well under 10K limit)
 
@@ -185,7 +183,7 @@ If deploying on platforms that support environment variables:
 JSONBIN_API_KEY=your_api_key_here
 ```
 
-### Customization *(Enhanced in v1.1.0)*
+### Customization *(Enhanced in v1.1)*
 - Modify daily goals and weight targets through Settings UI
 - Customize wellness thresholds and goal tolerances
 - Adjust theme and display preferences
@@ -241,7 +239,7 @@ resetData()
 - ✅ Use "Force Sync" to trigger immediate sync
 - ✅ Settings are saved locally even if cloud sync fails
 
-### Reset & Recovery *(Enhanced in v1.1.0)*
+### Reset & Recovery *(Enhanced in v1.1)*
 - Use **Settings > App Preferences** to customize interface
 - Use **Settings > Goal Management** to update targets
 - Use **Settings > Export Data** to backup before making changes
@@ -265,7 +263,7 @@ resetData()
 
 ## 🔄 Data Migration
 
-### From localStorage Version *(Enhanced in v1.1.0)*
+### From localStorage Version *(Enhanced in v1.1)*
 1. Export data from localStorage version using Settings > Export
 2. Setup JSONBin version with API key
 3. Use Settings > Import Data to restore your backup
@@ -286,14 +284,14 @@ resetData()
 1. Check this README for common solutions
 2. Export your data as backup before troubleshooting
 3. Create GitHub issue with:
-   - Version: JSONBin v1.1.0
+   - Version: JSONBin v1.1
    - Browser and version
    - Error messages (remove API keys!)
    - Steps to reproduce the problem
 
 ## 🔮 Roadmap
 
-### Completed in v1.1.0
+### Completed in v1.1
 - ✅ **Advanced Settings UI** with comprehensive preferences
 - ✅ **Goal Management** with live cloud sync
 - ✅ **Enhanced Data Management** with import/export
@@ -338,4 +336,4 @@ BSD-3-Clause License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-*JSONBin Cloud v1.1.0 - Enhanced with advanced settings and goal management*
+*JSONBin Cloud v1.1 - Enhanced with advanced settings and goal management*
