@@ -1,4 +1,4 @@
-# 🏗️ Work in Progess 🏗️ #
+# 🏗️ Work in Progess 🏗️ 
 
 # BribeYourselfFit - Airtable Database Version v1.1.0
 
