@@ -345,7 +345,7 @@ BYF/
 - 📖 **Branch READMEs**: Each version has detailed setup instructions
 - 🏠 **localStorage v1.1**: [Setup Guide](../../tree/main) - No setup required!
 - 🌐 **JSONBin v1.1**: [Setup Guide](../../tree/jsonbin-version)
-- 📊 **Airtable Version**: "Coming Soon"
+- 📊 **Airtable Version**: Work in Progress"
 - 🔥 **Firebase Version**: "Coming Soon"
 - 🔌 **API Integration**: *(guides coming with each backend)*
 
