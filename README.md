@@ -178,7 +178,7 @@ git checkout jsonbin-version
 3. Data syncs across devices automatically
 
 ### **📊 Airtable Database**
-⚠️ Coming Soon - Structured database with rich features
+🏗️ Work in Progress - Structured database with rich features
 ```bash
 # Coming in Phase 4b
 git checkout airtable-version
