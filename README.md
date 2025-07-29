@@ -23,8 +23,9 @@ This showcases how AI tools enable domain experts to build sophisticated databas
 
 ### 1. Copy the Airtable Base Template
 1. **[Use this Airtable template](https://airtable.com/appmoO7oRBIkwdegp/shrI1iK3qEtLWCTwQ)** to copy the pre-configured base to your account
-2. **Rename your base** to something like "My BribeYourselfFit Data"
-3. **Note your Base ID** from the URL (starts with `app...`)
+2. **Review the sample data**. After reviewing, delete the sample data, but leave the table structure intact.
+3. **Rename your base** to something like "My BribeYourselfFit Data"
+4. **Note your Base ID** from the URL (starts with `app...`)
 
 ### 2. Create Your Personal Access Token
 1. Visit [airtable.com/create/tokens](https://airtable.com/create/tokens)
