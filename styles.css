@@ -1433,8 +1433,13 @@ body {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .date-and-sync {
@@ -1449,7 +1454,11 @@ body {
 }
 
 .info-box {
-  background: linear-gradient(135deg, rgba(66, 133, 244, 0.1), rgba(66, 133, 244, 0.05));
+  background: linear-gradient(
+    135deg,
+    rgba(66, 133, 244, 0.1),
+    rgba(66, 133, 244, 0.05)
+  );
   border: 1px solid var(--cloud-accent);
   border-radius: 12px;
   padding: 1.5rem;
@@ -1667,7 +1676,11 @@ body {
 
 .danger-zone {
   border: 2px solid var(--accent-danger);
-  background: linear-gradient(135deg, rgba(220, 53, 69, 0.1), rgba(220, 53, 69, 0.05));
+  background: linear-gradient(
+    135deg,
+    rgba(220, 53, 69, 0.1),
+    rgba(220, 53, 69, 0.05)
+  );
 }
 
 .danger-text {
