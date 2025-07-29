@@ -72,7 +72,7 @@ BribeYourselfFit offers multiple storage options to fit your needs:
 |---------|---------|-------|----------|--------|--------|
 | 🏠 **localStorage** | Browser only | None | Simple setup, offline use | `main` | ✅ v1.1 Ready |
 | 🌐 **JSONBin.io** | Cloud API | API key | Cross-device sync, simple cloud | `jsonbin-version` | ✅ v1.1 Ready |
-| 📊 **Airtable** | Structured DB | API setup | Rich data features, sharing | `airtable-version` | 🚧 Coming Soon |
+| 📊 **Airtable** | Structured DB | API setup | Rich data features, sharing | `airtable-version` | 🏗️ Work in Progress |
 | 🔥 **Firebase** | Real-time DB | Project setup | Enterprise scale, real-time | `firebase-version` | 🚧 Coming Soon |
 
 ## 🤖 **Built with AI-Assisted Development**
