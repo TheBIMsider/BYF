@@ -26,7 +26,7 @@ class BribeYourselfFit {
     this.achievements = [];
     this.defaultMilestones = [];
     this.defaultMilestones = [];
-    this.settings = {};
+    this.settings = this.getDefaultSettings();
     this.currentTab = 'dashboard';
     this.chartPeriod = 7;
     this.currentDate = new Date().toISOString().split('T')[0];
@@ -244,7 +244,7 @@ class BribeYourselfFit {
       importDataBtn.addEventListener('click', this.handleImportData.bind(this));
     }
 
-    // Streak management buttons
+    // Reset buttons
     const resetStreaksBtn = document.getElementById('resetStreaksBtn');
     const clearTodayBtn = document.getElementById('clearTodayBtn');
     const resetProfileBtn = document.getElementById('resetProfileBtn');
@@ -280,6 +280,128 @@ class BribeYourselfFit {
   }
 
   /**
+   * Handle import data button click
+   */
+  handleImportData() {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+
+    if (!file) {
+      this.showError('Please select a backup file first');
+      return;
+    }
+
+    this.importData(file);
+  }
+
+  /**
+   * Import data from JSON file
+   */
+  importData(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedData = JSON.parse(e.target.result);
+
+        // Validate imported data structure
+        if (!this.validateImportData(importedData)) {
+          this.showError('Invalid backup file format');
+          return;
+        }
+
+        // Confirm import
+        if (
+          !confirm(
+            'This will replace all current data. Are you sure you want to import?'
+          )
+        ) {
+          return;
+        }
+
+        // Import data
+        this.currentUser = importedData.user;
+        this.dailyLogs = importedData.dailyLogs || {};
+        this.streaks = importedData.streaks || this.initializeStreaks();
+        this.customRewards = importedData.customRewards || [];
+        this.achievements = importedData.achievements || [];
+        this.settings = {
+          ...this.getDefaultSettings(),
+          ...(importedData.settings || {}),
+        };
+
+        // Save imported data
+        this.saveData();
+        this.saveSettings();
+
+        // Refresh display
+        this.updateDashboard();
+        this.initializeDefaultMilestones();
+
+        this.showSuccess('Data imported successfully!');
+
+        // Refresh page to ensure clean state
+        setTimeout(() => {
+          location.reload();
+        }, 1500);
+      } catch (error) {
+        console.error('Import error:', error);
+        this.showError('Failed to import data. Please check the file format.');
+      }
+    };
+
+    reader.readAsText(file);
+  }
+
+  /**
+   * Validate imported data structure
+   */
+  validateImportData(data) {
+    return (
+      data &&
+      data.user &&
+      typeof data.user.startingWeight === 'number' &&
+      typeof data.user.goalWeight === 'number' &&
+      typeof data.user.dailySteps === 'number' &&
+      typeof data.user.dailyExercise === 'number' &&
+      typeof data.user.dailyWater === 'number'
+    );
+  }
+
+  /**
+   * Export daily logs only
+   */
+  exportDailyLogs() {
+    const exportData = {
+      dailyLogs: this.dailyLogs,
+      exportDate: new Date().toISOString(),
+      exportType: 'logs_only',
+      version: '1.1.0-localStorage',
+    };
+
+    this.downloadData(exportData, 'daily_logs');
+    this.showSuccess('Daily logs exported successfully!');
+  }
+
+  /**
+   * View detailed statistics
+   */
+  viewDetailedStats() {
+    const stats = this.getAppStats();
+
+    const statsText = Object.entries(stats)
+      .map(
+        ([key, value]) =>
+          `${key}: ${
+            typeof value === 'object' ? JSON.stringify(value, null, 2) : value
+          }`
+      )
+      .join('\n');
+
+    alert(`BribeYourselfFit Detailed Statistics:\n\n${statsText}`);
+    console.table(stats);
+  }
+
+  /**
    * Handle theme preference changes
    */
   handleThemePreferenceChange(e) {
@@ -312,15 +434,31 @@ class BribeYourselfFit {
     const value =
       e.target.type === 'checkbox' ? e.target.checked : e.target.value;
 
+    console.log(`🔧 Setting changed: ${setting} = ${value}`);
+
     this.settings[setting] = value;
     this.saveSettings();
 
-    // Apply certain settings immediately
+    // Add these two debug lines HERE
+    console.log('💾 Current settings after save:', this.settings);
+    console.log(
+      '💾 Saved to localStorage:',
+      localStorage.getItem('byf_settings')
+    );
+
+    // Apply certain settings immediately (KEEP THIS EXISTING CODE)
     if (setting === 'weekStart') {
       // Re-render calendar if it's currently visible
       if (this.currentTab === 'charts') {
         this.renderStreakCalendar();
       }
+    } else if (setting === 'weightUnit') {
+      console.log(`🔄 Weight unit changed to: ${value}`);
+      // Update all weight displays immediately
+      this.updateWeightDisplays();
+    } else if (setting === 'dateFormat') {
+      // Update date displays if needed
+      this.updateCurrentDate();
     }
   }
 
@@ -509,9 +647,8 @@ class BribeYourselfFit {
       document.documentElement.setAttribute('data-theme', savedTheme);
       this.updateThemeToggle(savedTheme);
 
-      if (this.settings.themePreference === 'system') {
-        this.setupSystemThemeListener();
-      }
+      // Load settings from storage
+      this.loadSettingsFromStorage();
     } catch (error) {
       console.error('Error loading data:', error);
       this.showError('Failed to load saved data. Starting fresh.');
@@ -553,6 +690,143 @@ class BribeYourselfFit {
       allowPartialExercise: false,
       strictWellness: false,
     };
+  }
+
+  /**
+   * Load settings from storage
+   */
+  loadSettingsFromStorage() {
+    try {
+      const savedSettings = localStorage.getItem('byf_settings');
+      if (savedSettings) {
+        this.settings = {
+          ...this.getDefaultSettings(),
+          ...JSON.parse(savedSettings),
+        };
+      } else {
+        this.settings = this.getDefaultSettings();
+      }
+
+      // Apply theme preference
+      if (this.settings.themePreference === 'system') {
+        this.setupSystemThemeListener();
+      } else {
+        document.documentElement.setAttribute(
+          'data-theme',
+          this.settings.themePreference
+        );
+        localStorage.setItem('byf_theme', this.settings.themePreference);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      this.settings = this.getDefaultSettings();
+    }
+
+    // Apply initial UI updates based on loaded settings
+    if (this.settings.weightUnit && this.settings.weightUnit !== 'lbs') {
+      setTimeout(() => {
+        this.updateWeightDisplays();
+      }, 500);
+    }
+  }
+
+  /**
+   * Setup system theme preference listener
+   */
+  setupSystemThemeListener() {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleThemeChange = (e) => {
+      if (this.settings.themePreference === 'system') {
+        const theme = e.matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('byf_theme', theme);
+        this.updateThemeToggle(theme);
+      }
+    };
+
+    mediaQuery.addListener(handleThemeChange);
+    // Set initial theme
+    handleThemeChange(mediaQuery);
+  }
+
+  /**
+   * Update all weight displays when unit changes
+   */
+  updateWeightDisplays() {
+    const weightUnit = this.settings?.weightUnit || 'lbs';
+    console.log(`🔄 Updating weight displays to ${weightUnit}`);
+
+    if (!this.currentUser) {
+      console.log('❌ No current user data available');
+      return;
+    }
+
+    // Update quick stats in sidebar
+    const currentWeightEl = document.getElementById('currentWeightDisplay');
+    const goalWeightEl = document.getElementById('goalWeightDisplay');
+    const weightToGoEl = document.getElementById('weightToGoDisplay');
+
+    if (currentWeightEl) {
+      const currentWeight =
+        weightUnit === 'kg'
+          ? (this.currentUser.currentWeight * 0.453592).toFixed(1)
+          : this.currentUser.currentWeight;
+      currentWeightEl.textContent = `${currentWeight} ${weightUnit}`;
+    }
+
+    if (goalWeightEl) {
+      const goalWeight =
+        weightUnit === 'kg'
+          ? (this.currentUser.goalWeight * 0.453592).toFixed(1)
+          : this.currentUser.goalWeight;
+      goalWeightEl.textContent = `${goalWeight} ${weightUnit}`;
+    }
+
+    if (weightToGoEl) {
+      const currentWeight =
+        weightUnit === 'kg'
+          ? this.currentUser.currentWeight * 0.453592
+          : this.currentUser.currentWeight;
+      const goalWeight =
+        weightUnit === 'kg'
+          ? this.currentUser.goalWeight * 0.453592
+          : this.currentUser.goalWeight;
+      const weightToGo = Math.abs(currentWeight - goalWeight);
+      weightToGoEl.textContent = `${weightToGo.toFixed(1)} ${weightUnit}`;
+    }
+
+    // Update form labels - fix the duplicate issue
+    const weightLabels = document.querySelectorAll(
+      'label[for*="Weight"], label[for*="weight"]'
+    );
+    console.log(`Found ${weightLabels.length} weight labels to update`);
+
+    weightLabels.forEach((label, index) => {
+      const originalText = label.textContent;
+      // Remove any existing unit indicators and add the current one
+      let newText = originalText.replace(/\s*\([^)]*\)[^)]*$/g, ''); // Remove (lbs) or (kg) and anything after
+      newText = newText.replace(/\s*-\s*(lbs|kg)\s*$/g, ''); // Remove trailing - lbs or - kg
+      newText = `${newText} (${weightUnit})`;
+
+      if (originalText !== newText) {
+        label.textContent = newText;
+        console.log(
+          `✅ Updated label ${index}: "${originalText}" → "${newText}"`
+        );
+      }
+    });
+
+    // Force update the dashboard form after changing units
+    if (this.currentTab === 'dashboard') {
+      this.loadTodaysData();
+    }
+    // Update any chart labels if weight chart is visible
+    if (this.currentTab === 'charts') {
+      setTimeout(() => {
+        this.renderWeightChart();
+      }, 100);
+    }
   }
 
   /**
@@ -638,6 +912,38 @@ class BribeYourselfFit {
 
     // Update app info
     this.updateAppInfo();
+  }
+
+  /**
+   * Update app information display
+   */
+  updateAppInfo() {
+    const totalEntriesEl = document.getElementById('totalDataEntries');
+    const storageUsedEl = document.getElementById('storageUsed');
+    const profileCreatedEl = document.getElementById('profileCreated');
+
+    if (totalEntriesEl) {
+      totalEntriesEl.textContent = Object.keys(
+        this.dailyLogs
+      ).length.toString();
+    }
+
+    if (storageUsedEl) {
+      const dataSize = JSON.stringify({
+        user: this.currentUser,
+        dailyLogs: this.dailyLogs,
+        streaks: this.streaks,
+        customRewards: this.customRewards,
+        achievements: this.achievements,
+        settings: this.settings,
+      }).length;
+      storageUsedEl.textContent = `~${Math.round(dataSize / 1024)} KB`;
+    }
+
+    if (profileCreatedEl && this.currentUser && this.currentUser.setupDate) {
+      const setupDate = new Date(this.currentUser.setupDate);
+      profileCreatedEl.textContent = setupDate.toLocaleDateString();
+    }
   }
 
   /**
@@ -1035,12 +1341,22 @@ class BribeYourselfFit {
     const today = logEntry.date;
     const yesterday = this.getDateOffset(today, -1);
 
-    // Check if goals are met
+    // Check if goals are met (applying user's threshold settings)
+    const stepsThreshold = this.settings?.allowPartialSteps
+      ? this.currentUser.dailySteps * 0.9
+      : this.currentUser.dailySteps;
+
+    const exerciseThreshold = this.settings?.allowPartialExercise
+      ? this.currentUser.dailyExercise * 0.8
+      : this.currentUser.dailyExercise;
+
+    const wellnessThreshold = this.settings?.strictWellness ? 4 : 3;
+
     const goalsMetToday = {
-      steps: logEntry.steps >= this.currentUser.dailySteps,
-      exercise: logEntry.exerciseMinutes >= this.currentUser.dailyExercise,
+      steps: logEntry.steps >= stepsThreshold,
+      exercise: logEntry.exerciseMinutes >= exerciseThreshold,
       water: logEntry.water >= this.currentUser.dailyWater,
-      wellness: logEntry.wellnessScore >= 3,
+      wellness: logEntry.wellnessScore >= wellnessThreshold,
     };
 
     // Check if weight was logged this week
@@ -1280,7 +1596,13 @@ class BribeYourselfFit {
       todaysLog.weight !== null &&
       todaysLog.weight !== undefined
     ) {
-      weightInput.value = todaysLog.weight;
+      const weightUnit = this.settings?.weightUnit || 'lbs';
+      const displayWeight =
+        weightUnit === 'kg'
+          ? (todaysLog.weight * 0.453592).toFixed(1)
+          : todaysLog.weight;
+      weightInput.value = displayWeight;
+      console.log(`📝 Loaded today's weight: ${displayWeight} ${weightUnit}`);
     }
     if (stepsInput && todaysLog.steps) {
       stepsInput.value = todaysLog.steps;
@@ -1470,9 +1792,27 @@ class BribeYourselfFit {
     ctx.clearRect(0, 0, width, height);
 
     // Calculate scales
+    const weightUnit = this.settings?.weightUnit || 'lbs';
     const weights = weightData.map((d) => d.weight);
-    const minWeight = Math.min(...weights, this.currentUser.goalWeight) - 5;
-    const maxWeight = Math.max(...weights, this.currentUser.startingWeight) + 5;
+
+    // Convert goal and starting weights for proper chart scaling
+    const goalWeightForChart =
+      weightUnit === 'kg'
+        ? this.currentUser.goalWeight * 0.453592
+        : this.currentUser.goalWeight;
+    const startingWeightForChart =
+      weightUnit === 'kg'
+        ? this.currentUser.startingWeight * 0.453592
+        : this.currentUser.startingWeight;
+
+    const minWeight = Math.min(...weights, goalWeightForChart) - 5;
+    const maxWeight = Math.max(...weights, startingWeightForChart) + 5;
+
+    console.log(
+      `📊 Chart scale: ${minWeight.toFixed(1)} - ${maxWeight.toFixed(
+        1
+      )} ${weightUnit}`
+    );
 
     // Calculate chart area dimensions
     const chartWidth = width - padding.left - padding.right;
@@ -1507,15 +1847,17 @@ class BribeYourselfFit {
       ).getPropertyValue('--text-secondary');
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText(`${weight.toFixed(0)} lbs`, padding.left - 10, y + 4);
+      const weightUnit = this.settings?.weightUnit || 'lbs';
+      ctx.fillText(
+        `${weight.toFixed(0)} ${weightUnit}`,
+        padding.left - 10,
+        y + 4
+      );
     }
 
     // Draw goal line
-    if (
-      this.currentUser.goalWeight >= minWeight &&
-      this.currentUser.goalWeight <= maxWeight
-    ) {
-      const goalY = yScale(this.currentUser.goalWeight);
+    if (goalWeightForChart >= minWeight && goalWeightForChart <= maxWeight) {
+      const goalY = yScale(goalWeightForChart);
       ctx.strokeStyle = getComputedStyle(
         document.documentElement
       ).getPropertyValue('--accent-success');
@@ -1533,8 +1875,12 @@ class BribeYourselfFit {
       ).getPropertyValue('--accent-success');
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'left';
+      const goalWeight =
+        weightUnit === 'kg'
+          ? (this.currentUser.goalWeight * 0.453592).toFixed(0)
+          : this.currentUser.goalWeight;
       ctx.fillText(
-        `Goal: ${this.currentUser.goalWeight} lbs`,
+        `Goal: ${goalWeight} ${weightUnit}`,
         width - padding.right - 100,
         goalY - 10
       );
@@ -1574,12 +1920,21 @@ class BribeYourselfFit {
   }
 
   /**
-   * Get filtered weight data based on chart period
+   * Get filtered weight data based on chart period with unit conversion
    */
   getWeightData() {
+    const weightUnit = this.settings?.weightUnit || 'lbs';
+
     const weightEntries = Object.values(this.dailyLogs)
       .filter((log) => log.weight !== null)
-      .map((log) => ({ date: log.date, weight: log.weight }))
+      .map((log) => {
+        const displayWeight =
+          weightUnit === 'kg' ? log.weight * 0.453592 : log.weight;
+        return {
+          date: log.date,
+          weight: displayWeight,
+        };
+      })
       .sort((a, b) => new Date(a.date) - new Date(b.date));
 
     if (this.chartPeriod === 'all') {
@@ -1968,14 +2323,25 @@ class BribeYourselfFit {
   }
 
   /**
-   * Check if day's goals were met
+   * Check if day's goals were met (with settings consideration)
    */
   checkDayGoalsMet(dayLog) {
+    // Apply user's goal threshold settings
+    const stepsThreshold = this.settings?.allowPartialSteps
+      ? this.currentUser.dailySteps * 0.9
+      : this.currentUser.dailySteps;
+
+    const exerciseThreshold = this.settings?.allowPartialExercise
+      ? this.currentUser.dailyExercise * 0.8
+      : this.currentUser.dailyExercise;
+
+    const wellnessThreshold = this.settings?.strictWellness ? 4 : 3;
+
     const goalsmet = {
-      steps: dayLog.steps >= this.currentUser.dailySteps,
-      exercise: dayLog.exerciseMinutes >= this.currentUser.dailyExercise,
+      steps: dayLog.steps >= stepsThreshold,
+      exercise: dayLog.exerciseMinutes >= exerciseThreshold,
       water: dayLog.water >= this.currentUser.dailyWater,
-      wellness: dayLog.wellnessScore >= 3,
+      wellness: dayLog.wellnessScore >= wellnessThreshold,
     };
 
     const weeklyWeight = this.checkWeeklyWeight(dayLog.date);
@@ -2038,7 +2404,7 @@ class BribeYourselfFit {
   }
 
   /**
-   * Generate weight loss milestones based on user's goals
+   * Generate weight loss milestones based on user's goals (with custom rewards integration)
    */
   generateWeightMilestones() {
     if (!this.currentUser) return [];
@@ -2047,39 +2413,109 @@ class BribeYourselfFit {
     const totalWeightToLose =
       this.currentUser.startingWeight - this.currentUser.goalWeight;
 
-    if (totalWeightToLose <= 0) return milestones; // No weight loss needed
+    if (totalWeightToLose <= 0) return milestones;
 
-    // 10 lb milestones
+    // Add default weight milestones (every 10 lbs)
     for (let lost = 10; lost <= totalWeightToLose; lost += 10) {
+      // Check if there's a custom reward for this milestone
+      const customReward = this.customRewards.find(
+        (reward) => reward.type === 'weight' && reward.weightLoss === lost
+      );
+
       milestones.push({
         type: 'weight',
         value: lost,
-        title: `${lost} lbs Lost`,
-        description: `Lost ${lost} pounds from starting weight`,
+        title: customReward
+          ? `${lost} lbs Lost - Custom Reward`
+          : `${lost} lbs Lost`,
+        description: customReward
+          ? `Custom milestone: ${customReward.description}`
+          : `Lost ${lost} pounds from starting weight`,
+        customReward: customReward || null,
       });
     }
 
-    // Bigger milestones for 25 lb increments
+    // Add bonus milestones (every 25 lbs)
     for (let lost = 25; lost <= totalWeightToLose; lost += 25) {
-      milestones.push({
-        type: 'weight',
-        value: lost,
-        title: `${lost} lbs Lost - BIG WIN!`,
-        description: `Amazing achievement: Lost ${lost} pounds!`,
-        isBig: true,
-      });
+      // Check if there's a custom reward for this milestone (don't duplicate)
+      const alreadyExists = milestones.some((m) => m.value === lost);
+      if (!alreadyExists) {
+        const customReward = this.customRewards.find(
+          (reward) => reward.type === 'weight' && reward.weightLoss === lost
+        );
+
+        milestones.push({
+          type: 'weight',
+          value: lost,
+          title: customReward
+            ? `${lost} lbs Lost - Custom Reward`
+            : `${lost} lbs Lost - BIG WIN!`,
+          description: customReward
+            ? `Custom milestone: ${customReward.description}`
+            : `Amazing achievement: Lost ${lost} pounds!`,
+          isBig: !customReward,
+          customReward: customReward || null,
+        });
+      }
     }
 
-    // Even bigger milestones for 50 lb increments
+    // Add major milestones (every 50 lbs)
     for (let lost = 50; lost <= totalWeightToLose; lost += 50) {
-      milestones.push({
-        type: 'weight',
-        value: lost,
-        title: `${lost} lbs Lost - MAJOR MILESTONE!`,
-        description: `Incredible transformation: Lost ${lost} pounds!`,
-        isMajor: true,
-      });
+      // Check if there's a custom reward for this milestone (don't duplicate)
+      const alreadyExists = milestones.some((m) => m.value === lost);
+      if (!alreadyExists) {
+        const customReward = this.customRewards.find(
+          (reward) => reward.type === 'weight' && reward.weightLoss === lost
+        );
+
+        milestones.push({
+          type: 'weight',
+          value: lost,
+          title: customReward
+            ? `${lost} lbs Lost - Custom Reward`
+            : `${lost} lbs Lost - MAJOR MILESTONE!`,
+          description: customReward
+            ? `Custom milestone: ${customReward.description}`
+            : `Incredible transformation: Lost ${lost} pounds!`,
+          isMajor: !customReward,
+          customReward: customReward || null,
+        });
+      }
     }
+
+    // Add any custom rewards that don't match the default pattern
+    this.customRewards.forEach((reward) => {
+      if (reward.type === 'weight' && reward.weightLoss) {
+        // Check if this milestone already exists
+        const alreadyExists = milestones.some(
+          (m) => m.value === reward.weightLoss
+        );
+        if (!alreadyExists) {
+          milestones.push({
+            type: 'weight',
+            value: reward.weightLoss,
+            title: `${reward.weightLoss} lbs Lost - Custom Reward`,
+            description: `Custom milestone: ${reward.description}`,
+            isCustom: true,
+            customReward: reward,
+          });
+        }
+      } else if (reward.type === 'streak' && reward.streakDays) {
+        // Handle custom streak rewards
+        milestones.push({
+          type: 'streak',
+          value: reward.streakDays,
+          title: `${reward.streakDays} Day Streak - Custom Reward`,
+          description: `Custom milestone: ${reward.description}`,
+          isCustom: true,
+          customReward: reward,
+        });
+      }
+    });
+
+    console.log(
+      `🎯 Generated ${milestones.length} milestones (including ${this.customRewards.length} custom rewards)`
+    );
 
     return milestones;
   }
@@ -2192,6 +2628,12 @@ class BribeYourselfFit {
    * Get custom reward for milestone
    */
   getCustomRewardForMilestone(milestone) {
+    // Check if the milestone already has a custom reward attached
+    if (milestone.customReward) {
+      return milestone.customReward;
+    }
+
+    // Otherwise, search for matching custom reward
     return this.customRewards.find(
       (reward) =>
         reward.type === milestone.type &&
@@ -2282,6 +2724,9 @@ class BribeYourselfFit {
     e.target.reset();
     this.updateRewardCriteria();
     this.renderCustomRewards();
+
+    // Force regenerate milestones to include the new custom reward
+    this.initializeDefaultMilestones();
     this.renderDefaultMilestones();
 
     this.showSuccess('Custom reward added successfully!');
@@ -2759,8 +3204,8 @@ class BribeYourselfFit {
       'byf_streaks',
       'byf_customRewards',
       'byf_achievements',
-      'byf_settings', // Add this line
-      'byf_theme', // Add this line
+      'byf_settings',
+      'byf_theme',
     ];
     keysToRemove.forEach((key) => localStorage.removeItem(key));
 
