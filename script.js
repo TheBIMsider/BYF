@@ -4859,31 +4859,52 @@ class BribeYourselfFitCloud {
       });
     }
 
-    // Add custom rewards as milestones
+    // Add custom rewards ONLY if they don't match default milestone values
+    const defaultMilestoneValues = new Set();
+
+    // Collect all default milestone values (weight milestones + streak milestones)
+    milestones.forEach((milestone) =>
+      defaultMilestoneValues.add(`${milestone.type}-${milestone.value}`)
+    );
+
+    // Add default streak values
+    [7, 14, 30, 50, 100].forEach((days) =>
+      defaultMilestoneValues.add(`streak-${days}`)
+    );
+
     this.customRewards.forEach((reward) => {
-      if (reward.type === 'weight' && reward.weightLoss) {
-        milestones.push({
-          type: 'weight',
-          value: reward.weightLoss,
-          title: `${reward.weightLoss} lbs Lost - Custom Reward`,
-          description: `Custom milestone: ${reward.description}`,
-          isCustom: true,
-          customReward: reward,
-        });
-      } else if (reward.type === 'streak' && reward.streakDays) {
-        milestones.push({
-          type: 'streak',
-          value: reward.streakDays,
-          title: `${reward.streakDays} Day Streak - Custom Reward`,
-          description: `Custom milestone: ${reward.description}`,
-          isCustom: true,
-          customReward: reward,
-        });
+      const rewardKey = `${reward.type}-${
+        reward.weightLoss || reward.streakDays
+      }`;
+
+      // Only add as separate milestone if it's NOT a default milestone value
+      if (!defaultMilestoneValues.has(rewardKey)) {
+        if (reward.type === 'weight' && reward.weightLoss) {
+          milestones.push({
+            type: 'weight',
+            value: reward.weightLoss,
+            title: `${reward.weightLoss} lbs Lost - Custom Reward`,
+            description: `Custom milestone: ${reward.description}`,
+            isCustom: true,
+            customReward: reward,
+          });
+        } else if (reward.type === 'streak' && reward.streakDays) {
+          milestones.push({
+            type: 'streak',
+            value: reward.streakDays,
+            title: `${reward.streakDays} Day Streak - Custom Reward`,
+            description: `Custom milestone: ${reward.description}`,
+            isCustom: true,
+            customReward: reward,
+          });
+        }
       }
     });
 
     console.log(
-      `🎯 Generated ${milestones.length} milestones (including ${this.customRewards.length} custom rewards)`
+      `🎯 Generated ${milestones.length} milestones (excluded ${
+        this.customRewards.length - milestones.filter((m) => m.isCustom).length
+      } duplicate default rewards)`
     );
 
     return milestones;
