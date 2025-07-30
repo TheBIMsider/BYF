@@ -317,73 +317,6 @@ class BribeYourselfFitCloud {
   }
 
   /**
-   * Update settings display
-   */
-  updateSettingsDisplay() {
-    // Update connection info
-    const connectionStatusEl = document.getElementById(
-      'settingsConnectionStatus'
-    );
-    if (connectionStatusEl) {
-      connectionStatusEl.textContent = this.cloudConfig.isConnected
-        ? '✅ Connected'
-        : '❌ Disconnected';
-    }
-
-    const lastSyncEl = document.getElementById('lastSyncTime');
-    if (lastSyncEl) {
-      if (this.cloudConfig.lastSync) {
-        const lastSync = new Date(this.cloudConfig.lastSync);
-        lastSyncEl.textContent = lastSync.toLocaleString();
-      } else {
-        lastSyncEl.textContent = 'Never';
-      }
-    }
-
-    // Update API key display with masked value
-    const settingsApiKeyEl = document.getElementById('settingsApiKey');
-    if (settingsApiKeyEl && this.cloudConfig.apiKey) {
-      const maskedKey =
-        this.cloudConfig.apiKey.substring(0, 8) + '••••••••••••';
-      settingsApiKeyEl.placeholder = maskedKey;
-    }
-
-    // Update data stats
-    const totalEntriesEl = document.getElementById('totalDataEntries');
-    if (totalEntriesEl) {
-      totalEntriesEl.textContent = Object.keys(
-        this.dailyLogs
-      ).length.toString();
-    }
-
-    const storageUsedEl = document.getElementById('storageUsed');
-    if (storageUsedEl) {
-      const dataSize = JSON.stringify({
-        user: this.currentUser,
-        dailyLogs: this.dailyLogs,
-        streaks: this.streaks,
-        customRewards: this.customRewards,
-        achievements: this.achievements,
-      }).length;
-      storageUsedEl.textContent = `~${Math.round(dataSize / 1024)} KB`;
-    }
-
-    // Update preferences
-    const autoSyncCheckbox = document.getElementById('autoSyncEnabled');
-    if (autoSyncCheckbox) {
-      autoSyncCheckbox.checked = this.autoSyncEnabled;
-    }
-
-    const syncNotificationsCheckbox =
-      document.getElementById('syncNotifications');
-    if (syncNotificationsCheckbox) {
-      syncNotificationsCheckbox.checked = this.syncNotifications;
-    }
-
-    this.updatePendingSyncCount();
-  }
-
-  /**
    * View app statistics
    */
   viewAppStats() {
@@ -796,6 +729,9 @@ class BribeYourselfFitCloud {
    * Perform initial sync when app loads
    */
   async performInitialSync() {
+    // Reset sync flag first to prevent stuck states
+    this.cloudConfig.syncInProgress = false;
+
     if (!this.cloudConfig.isConnected || !this.cloudConfig.binId) return;
 
     try {
@@ -1091,6 +1027,9 @@ class BribeYourselfFitCloud {
    * Force immediate sync
    */
   async forceSync() {
+    // Reset sync flag first to prevent stuck states
+    this.cloudConfig.syncInProgress = false;
+
     if (!this.cloudConfig.isConnected) {
       const connected = await this.testCloudConnection();
       if (!connected) {
@@ -1831,6 +1770,122 @@ class BribeYourselfFitCloud {
   }
 
   /**
+   * Load settings from storage (new function)
+   */
+  loadSettingsFromStorage() {
+    try {
+      // Load settings from localStorage
+      const savedSettings = localStorage.getItem('byf_settings');
+      if (savedSettings) {
+        this.settings = {
+          ...this.getDefaultSettings(),
+          ...JSON.parse(savedSettings),
+        };
+      } else {
+        this.settings = this.getDefaultSettings();
+      }
+
+      // Apply theme preference
+      if (this.settings.themePreference === 'system') {
+        this.setupSystemThemeListener();
+      } else {
+        document.documentElement.setAttribute(
+          'data-theme',
+          this.settings.themePreference
+        );
+        localStorage.setItem('byf_theme', this.settings.themePreference);
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      this.settings = this.getDefaultSettings();
+    }
+  }
+
+  /**
+   * Update all weight displays when unit changes
+   */
+  updateWeightDisplays() {
+    const weightUnit = this.settings?.weightUnit || 'lbs';
+    console.log(`🔄 Updating weight displays to ${weightUnit}`);
+
+    if (!this.currentUser) {
+      console.log('❌ No current user data available');
+      return;
+    }
+
+    // Update quick stats in sidebar
+    const currentWeightEl = document.getElementById('currentWeightDisplay');
+    const goalWeightEl = document.getElementById('goalWeightDisplay');
+    const weightToGoEl = document.getElementById('weightToGoDisplay');
+
+    if (currentWeightEl) {
+      const currentWeight =
+        weightUnit === 'kg'
+          ? (this.currentUser.currentWeight * 0.453592).toFixed(1)
+          : this.currentUser.currentWeight;
+      currentWeightEl.textContent = `${currentWeight} ${weightUnit}`;
+    }
+
+    if (goalWeightEl) {
+      const goalWeight =
+        weightUnit === 'kg'
+          ? (this.currentUser.goalWeight * 0.453592).toFixed(1)
+          : this.currentUser.goalWeight;
+      goalWeightEl.textContent = `${goalWeight} ${weightUnit}`;
+    }
+
+    if (weightToGoEl) {
+      const currentWeight =
+        weightUnit === 'kg'
+          ? this.currentUser.currentWeight * 0.453592
+          : this.currentUser.currentWeight;
+      const goalWeight =
+        weightUnit === 'kg'
+          ? this.currentUser.goalWeight * 0.453592
+          : this.currentUser.goalWeight;
+      const weightToGo = Math.abs(currentWeight - goalWeight);
+      weightToGoEl.textContent = `${weightToGo.toFixed(1)} ${weightUnit}`;
+    }
+
+    // Update form labels
+    const weightLabels = document.querySelectorAll(
+      'label[for*="Weight"], label[for*="weight"]'
+    );
+
+    weightLabels.forEach((label) => {
+      const originalText = label.textContent;
+      // Remove any existing unit indicators and add the current one
+      let newText = originalText.replace(/\s*\([^)]*\)[^)]*$/g, '');
+      newText = newText.replace(/\s*-\s*(lbs|kg)\s*$/g, '');
+      newText = `${newText} (${weightUnit})`;
+
+      if (originalText !== newText) {
+        label.textContent = newText;
+      }
+    });
+  }
+
+  /**
+   * Setup system theme preference listener (new function)
+   */
+  setupSystemThemeListener() {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleThemeChange = (e) => {
+      if (this.settings.themePreference === 'system') {
+        const theme = e.matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('byf_theme', theme);
+        this.updateThemeToggle(theme);
+      }
+    };
+
+    mediaQuery.addListener(handleThemeChange);
+    // Set initial theme
+    handleThemeChange(mediaQuery);
+  }
+
+  /**
    * Save all data to localStorage (backup storage)
    */
   saveLocalData() {
@@ -1959,7 +2014,13 @@ class BribeYourselfFitCloud {
       todaysLog.weight !== null &&
       todaysLog.weight !== undefined
     ) {
-      weightInput.value = todaysLog.weight;
+      const weightUnit = this.settings?.weightUnit || 'lbs';
+      const displayWeight =
+        weightUnit === 'kg'
+          ? (todaysLog.weight * 0.453592).toFixed(1)
+          : todaysLog.weight;
+      weightInput.value = displayWeight;
+      console.log(`📝 Loaded today's weight: ${displayWeight} ${weightUnit}`);
     }
     if (stepsInput && todaysLog.steps) {
       stepsInput.value = todaysLog.steps;
@@ -2473,7 +2534,7 @@ class BribeYourselfFitCloud {
   }
 
   /**
-   * Load settings from storage (new function)
+   * Load settings from storage (enhanced function)
    */
   loadSettingsFromStorage() {
     try {
@@ -2502,6 +2563,14 @@ class BribeYourselfFitCloud {
       console.error('Error loading settings:', error);
       this.settings = this.getDefaultSettings();
     }
+
+    // Apply initial UI updates based on loaded settings
+    if (this.settings.weightUnit && this.settings.weightUnit !== 'lbs') {
+      // Delay to ensure DOM is ready
+      setTimeout(() => {
+        this.updateWeightDisplays();
+      }, 500);
+    }
   }
 
   /**
@@ -2525,12 +2594,85 @@ class BribeYourselfFitCloud {
   }
 
   /**
-   * Enhanced updateSettingsDisplay function
+   * Update settings display (complete merged version)
    */
   updateSettingsDisplay() {
-    // Call existing updateSettingsDisplay first
-    if (this.originalUpdateSettingsDisplay) {
-      this.originalUpdateSettingsDisplay.call(this);
+    console.log('🔄 Updating settings display...');
+    console.log('Connection status:', this.cloudConfig.isConnected);
+    console.log('Last sync:', this.cloudConfig.lastSync);
+
+    // Update connection info
+    const connectionStatusEl = document.getElementById(
+      'settingsConnectionStatus'
+    );
+    if (connectionStatusEl) {
+      const status = this.cloudConfig.isConnected
+        ? '✅ Connected'
+        : '❌ Disconnected';
+      connectionStatusEl.textContent = status;
+      connectionStatusEl.style.color = this.cloudConfig.isConnected
+        ? 'var(--accent-success)'
+        : 'var(--accent-danger)';
+      console.log('✅ Connection status updated to:', status);
+    } else {
+      console.warn('❌ settingsConnectionStatus element not found');
+    }
+
+    const lastSyncEl = document.getElementById('lastSyncTime');
+    if (lastSyncEl) {
+      if (this.cloudConfig.lastSync) {
+        const lastSync = new Date(this.cloudConfig.lastSync);
+        const syncTime = lastSync.toLocaleString();
+        lastSyncEl.textContent = syncTime;
+        lastSyncEl.style.color = 'var(--accent-success)';
+        console.log('✅ Last sync time updated to:', syncTime);
+      } else {
+        lastSyncEl.textContent = 'Never';
+        lastSyncEl.style.color = 'var(--text-secondary)';
+        console.log('✅ Last sync time set to: Never');
+      }
+    } else {
+      console.warn('❌ lastSyncTime element not found');
+    }
+
+    // Update API key display with masked value
+    const settingsApiKeyEl = document.getElementById('settingsApiKey');
+    if (settingsApiKeyEl && this.cloudConfig.apiKey) {
+      const maskedKey =
+        this.cloudConfig.apiKey.substring(0, 8) + '••••••••••••';
+      settingsApiKeyEl.placeholder = maskedKey;
+    }
+
+    // Update data stats
+    const totalEntriesEl = document.getElementById('totalDataEntries');
+    if (totalEntriesEl) {
+      totalEntriesEl.textContent = Object.keys(
+        this.dailyLogs
+      ).length.toString();
+    }
+
+    const storageUsedEl = document.getElementById('storageUsed');
+    if (storageUsedEl) {
+      const dataSize = JSON.stringify({
+        user: this.currentUser,
+        dailyLogs: this.dailyLogs,
+        streaks: this.streaks,
+        customRewards: this.customRewards,
+        achievements: this.achievements,
+      }).length;
+      storageUsedEl.textContent = `~${Math.round(dataSize / 1024)} KB`;
+    }
+
+    // Update preferences
+    const autoSyncCheckbox = document.getElementById('autoSyncEnabled');
+    if (autoSyncCheckbox) {
+      autoSyncCheckbox.checked = this.autoSyncEnabled;
+    }
+
+    const syncNotificationsCheckbox =
+      document.getElementById('syncNotifications');
+    if (syncNotificationsCheckbox) {
+      syncNotificationsCheckbox.checked = this.syncNotifications;
     }
 
     // Update theme preference radio buttons
@@ -2591,6 +2733,9 @@ class BribeYourselfFitCloud {
         this.settings?.allowPartialExercise || false;
     if (strictWellness)
       strictWellness.checked = this.settings?.strictWellness || false;
+
+    this.updatePendingSyncCount();
+    console.log('🎉 Settings display update complete');
   }
 
   /**
@@ -2673,9 +2818,21 @@ class BribeYourselfFitCloud {
 
     ctx.clearRect(0, 0, width, height);
 
+    const weightUnit = this.settings?.weightUnit || 'lbs';
     const weights = weightData.map((d) => d.weight);
-    const minWeight = Math.min(...weights, this.currentUser.goalWeight) - 5;
-    const maxWeight = Math.max(...weights, this.currentUser.startingWeight) + 5;
+
+    // Convert goal and starting weights for proper chart scaling
+    const goalWeightForChart =
+      weightUnit === 'kg'
+        ? this.currentUser.goalWeight * 0.453592
+        : this.currentUser.goalWeight;
+    const startingWeightForChart =
+      weightUnit === 'kg'
+        ? this.currentUser.startingWeight * 0.453592
+        : this.currentUser.startingWeight;
+
+    const minWeight = Math.min(...weights, goalWeightForChart) - 5;
+    const maxWeight = Math.max(...weights, startingWeightForChart) + 5;
 
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
@@ -2705,15 +2862,17 @@ class BribeYourselfFitCloud {
       ).getPropertyValue('--text-secondary');
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText(`${weight.toFixed(0)} lbs`, padding.left - 10, y + 4);
+      const weightUnit = this.settings?.weightUnit || 'lbs';
+      ctx.fillText(
+        `${weight.toFixed(0)} ${weightUnit}`,
+        padding.left - 10,
+        y + 4
+      );
     }
 
     // Draw goal line
-    if (
-      this.currentUser.goalWeight >= minWeight &&
-      this.currentUser.goalWeight <= maxWeight
-    ) {
-      const goalY = yScale(this.currentUser.goalWeight);
+    if (goalWeightForChart >= minWeight && goalWeightForChart <= maxWeight) {
+      const goalY = yScale(goalWeightForChart);
       ctx.strokeStyle = getComputedStyle(
         document.documentElement
       ).getPropertyValue('--accent-success');
@@ -2730,8 +2889,13 @@ class BribeYourselfFitCloud {
       ).getPropertyValue('--accent-success');
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'left';
+      const weightUnit = this.settings?.weightUnit || 'lbs';
+      const goalWeight =
+        weightUnit === 'kg'
+          ? (this.currentUser.goalWeight * 0.453592).toFixed(0)
+          : this.currentUser.goalWeight;
       ctx.fillText(
-        `Goal: ${this.currentUser.goalWeight} lbs`,
+        `Goal: ${goalWeight} ${weightUnit}`,
         width - padding.right - 100,
         goalY - 10
       );
@@ -2773,9 +2937,18 @@ class BribeYourselfFitCloud {
    * Get filtered weight data based on chart period
    */
   getWeightData() {
+    const weightUnit = this.settings?.weightUnit || 'lbs';
+
     const weightEntries = Object.values(this.dailyLogs)
       .filter((log) => log.weight !== null)
-      .map((log) => ({ date: log.date, weight: log.weight }))
+      .map((log) => {
+        const displayWeight =
+          weightUnit === 'kg' ? log.weight * 0.453592 : log.weight;
+        return {
+          date: log.date,
+          weight: displayWeight,
+        };
+      })
       .sort((a, b) => new Date(a.date) - new Date(b.date));
 
     if (this.chartPeriod === 'all') {
@@ -3249,6 +3422,36 @@ class BribeYourselfFitCloud {
       });
     }
 
+    // Add custom rewards as milestones
+    this.customRewards.forEach((reward) => {
+      if (reward.type === 'weight' && reward.weightLoss) {
+        milestones.push({
+          type: 'weight',
+          value: reward.weightLoss,
+          title: `${reward.weightLoss} lbs Lost - Custom Reward`,
+          description: `Custom milestone: ${reward.description}`,
+          isCustom: true,
+          customReward: reward,
+        });
+      } else if (reward.type === 'streak' && reward.streakDays) {
+        milestones.push({
+          type: 'streak',
+          value: reward.streakDays,
+          title: `${reward.streakDays} Day Streak - Custom Reward`,
+          description: `Custom milestone: ${reward.description}`,
+          isCustom: true,
+          customReward: reward,
+        });
+      }
+    });
+
+    console.log(`🎯 Generated ${milestones.length} total milestones`);
+    console.log(`🎁 Custom rewards:`, this.customRewards);
+    console.log(
+      `📋 All milestones:`,
+      milestones.filter((m) => m.isCustom)
+    );
+
     return milestones;
   }
 
@@ -3277,9 +3480,6 @@ class BribeYourselfFitCloud {
     });
   }
 
-  /**
-   * Create milestone element
-   */
   createMilestoneElement(milestone) {
     const el = document.createElement('div');
     el.className = 'milestone-item';
@@ -3304,26 +3504,32 @@ class BribeYourselfFitCloud {
       ? 'achieved'
       : 'pending';
 
-    const customReward = this.getCustomRewardForMilestone(milestone);
-    const rewardText = customReward
-      ? customReward.description
-      : 'Set custom reward...';
+    // Handle both default and custom rewards
+    let rewardText = 'Set custom reward...';
+    if (milestone.isCustom && milestone.customReward) {
+      rewardText = milestone.customReward.description;
+    } else {
+      const customReward = this.getCustomRewardForMilestone(milestone);
+      if (customReward) {
+        rewardText = customReward.description;
+      }
+    }
 
     el.innerHTML = `
-      <div class="milestone-header">
-        <div class="milestone-title">${milestone.title}</div>
-        <div class="milestone-status ${statusClass}">${statusText}</div>
-      </div>
-      <div class="milestone-description">${milestone.description}</div>
-      <div class="milestone-reward">
-        <div class="reward-text">${rewardText}</div>
-        ${
-          isAchieved && !isClaimed
-            ? `<button class="claim-btn" onclick="app.claimMilestone('${milestone.type}', ${milestone.value})">Claim Reward</button>`
-            : ''
-        }
-      </div>
-    `;
+    <div class="milestone-header">
+      <div class="milestone-title">${milestone.title}</div>
+      <div class="milestone-status ${statusClass}">${statusText}</div>
+    </div>
+    <div class="milestone-description">${milestone.description}</div>
+    <div class="milestone-reward">
+      <div class="reward-text">${rewardText}</div>
+      ${
+        isAchieved && !isClaimed
+          ? `<button class="claim-btn" onclick="app.claimMilestone('${milestone.type}', ${milestone.value})">Claim Reward</button>`
+          : ''
+      }
+    </div>
+  `;
 
     return el;
   }
@@ -3337,6 +3543,13 @@ class BribeYourselfFitCloud {
     } else if (milestone.type === 'weight') {
       const weightLost =
         this.currentUser.startingWeight - this.currentUser.currentWeight;
+
+      console.log(`🎯 Checking weight milestone: ${milestone.value} lbs`);
+      console.log(`📊 Starting weight: ${this.currentUser.startingWeight}`);
+      console.log(`📊 Current weight: ${this.currentUser.currentWeight}`);
+      console.log(`📊 Weight lost: ${weightLost.toFixed(1)} lbs`);
+      console.log(`✅ Achieved?: ${weightLost >= milestone.value}`);
+
       return weightLost >= milestone.value;
     }
     return false;
