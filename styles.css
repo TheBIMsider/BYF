@@ -747,6 +747,26 @@ body {
   align-items: center;
 }
 
+.reward-text.editable {
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  color: var(--accent-primary);
+  font-style: italic;
+}
+
+.reward-text.editable:hover {
+  background-color: var(--bg-secondary);
+  border: 1px dashed var(--accent-primary);
+}
+
+.reward-text.editable::after {
+  content: ' ✏️';
+  font-size: 0.8em;
+  opacity: 0.7;
+}
+
 .reward-text {
   font-style: italic;
   color: var(--text-primary);

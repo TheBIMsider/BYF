@@ -2548,7 +2548,7 @@ class BribeYourselfFit {
   }
 
   /**
-   * Create milestone element
+   * Create milestone element with editing capability
    */
   createMilestoneElement(milestone) {
     const el = document.createElement('div');
@@ -2574,29 +2574,102 @@ class BribeYourselfFit {
       ? 'achieved'
       : 'pending';
 
-    // Get custom reward for this milestone
     const customReward = this.getCustomRewardForMilestone(milestone);
     const rewardText = customReward
       ? customReward.description
       : 'Set custom reward...';
 
+    const isEditable = !customReward; // Only allow editing if no custom reward exists
+
     el.innerHTML = `
-            <div class="milestone-header">
-                <div class="milestone-title">${milestone.title}</div>
-                <div class="milestone-status ${statusClass}">${statusText}</div>
-            </div>
-            <div class="milestone-description">${milestone.description}</div>
-            <div class="milestone-reward">
-                <div class="reward-text">${rewardText}</div>
-                ${
-                  isAchieved && !isClaimed
-                    ? `<button class="claim-btn" onclick="app.claimMilestone('${milestone.type}', ${milestone.value})">Claim Reward</button>`
-                    : ''
-                }
-            </div>
-        `;
+      <div class="milestone-header">
+        <div class="milestone-title">${milestone.title}</div>
+        <div class="milestone-status ${statusClass}">${statusText}</div>
+      </div>
+      <div class="milestone-description">${milestone.description}</div>
+      <div class="milestone-reward">
+        <div class="reward-text ${isEditable ? 'editable' : ''}" 
+            data-milestone-type="${milestone.type}" 
+            data-milestone-value="${milestone.value}"
+            ${isEditable ? 'onclick="app.editMilestoneReward(this)"' : ''}>
+          ${rewardText}
+        </div>
+        ${
+          isAchieved && !isClaimed
+            ? `<button class="claim-btn" onclick="app.claimMilestone('${milestone.type}', ${milestone.value})">Claim Reward</button>`
+            : ''
+        }
+      </div>
+    `;
 
     return el;
+  }
+
+  /**
+   * Edit milestone reward (make it customizable)
+   */
+  editMilestoneReward(element) {
+    const milestoneType = element.dataset.milestoneType;
+    const milestoneValue = parseInt(element.dataset.milestoneValue);
+
+    // Check if this milestone already has a custom reward
+    const existingReward = this.customRewards.find(
+      (reward) =>
+        reward.type === milestoneType &&
+        (reward.streakDays === milestoneValue ||
+          reward.weightLoss === milestoneValue)
+    );
+
+    if (existingReward) {
+      this.showError(
+        'This milestone already has a custom reward. Delete it first to create a new one.'
+      );
+      return;
+    }
+
+    // Prompt for custom reward
+    const rewardDescription = prompt(
+      `Set your custom reward for this milestone:\n\n${
+        milestoneType === 'weight'
+          ? milestoneValue + ' lbs lost'
+          : milestoneValue + ' day streak'
+      }`,
+      'Enter your reward (e.g., "Spa day", "New workout clothes", "Cheat meal")'
+    );
+
+    if (
+      !rewardDescription ||
+      rewardDescription.trim() === '' ||
+      rewardDescription ===
+        'Enter your reward (e.g., "Spa day", "New workout clothes", "Cheat meal")'
+    ) {
+      return; // User cancelled or entered placeholder text
+    }
+
+    // Create custom reward
+    const customReward = {
+      type: milestoneType,
+      description: rewardDescription.trim(),
+      createdDate: new Date().toISOString(),
+    };
+
+    // Add type-specific criteria
+    if (milestoneType === 'weight') {
+      customReward.weightLoss = milestoneValue;
+    } else if (milestoneType === 'streak') {
+      customReward.streakDays = milestoneValue;
+    }
+
+    // Add to custom rewards
+    this.customRewards.push(customReward);
+    this.saveData();
+
+    // Regenerate milestones to include the new custom reward
+    this.initializeDefaultMilestones();
+    this.renderDefaultMilestones();
+    this.renderCustomRewards(); // Update the custom rewards list too
+
+    this.showSuccess(`Custom reward added: "${rewardDescription}"`);
   }
 
   /**
