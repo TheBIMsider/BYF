@@ -2404,7 +2404,7 @@ class BribeYourselfFit {
   }
 
   /**
-   * Generate weight loss milestones based on user's goals (with custom rewards integration)
+   * Generate weight loss milestones based on user's goals (with custom rewards integration - no duplicates)
    */
   generateWeightMilestones() {
     if (!this.currentUser) return [];
@@ -2417,80 +2417,57 @@ class BribeYourselfFit {
 
     // Add default weight milestones (every 10 lbs)
     for (let lost = 10; lost <= totalWeightToLose; lost += 10) {
-      // Check if there's a custom reward for this milestone
-      const customReward = this.customRewards.find(
-        (reward) => reward.type === 'weight' && reward.weightLoss === lost
-      );
-
       milestones.push({
         type: 'weight',
         value: lost,
-        title: customReward
-          ? `${lost} lbs Lost - Custom Reward`
-          : `${lost} lbs Lost`,
-        description: customReward
-          ? `Custom milestone: ${customReward.description}`
-          : `Lost ${lost} pounds from starting weight`,
-        customReward: customReward || null,
+        title: `${lost} lbs Lost`,
+        description: `Lost ${lost} pounds from starting weight`,
       });
     }
 
     // Add bonus milestones (every 25 lbs)
     for (let lost = 25; lost <= totalWeightToLose; lost += 25) {
-      // Check if there's a custom reward for this milestone (don't duplicate)
-      const alreadyExists = milestones.some((m) => m.value === lost);
-      if (!alreadyExists) {
-        const customReward = this.customRewards.find(
-          (reward) => reward.type === 'weight' && reward.weightLoss === lost
-        );
-
-        milestones.push({
-          type: 'weight',
-          value: lost,
-          title: customReward
-            ? `${lost} lbs Lost - Custom Reward`
-            : `${lost} lbs Lost - BIG WIN!`,
-          description: customReward
-            ? `Custom milestone: ${customReward.description}`
-            : `Amazing achievement: Lost ${lost} pounds!`,
-          isBig: !customReward,
-          customReward: customReward || null,
-        });
-      }
+      milestones.push({
+        type: 'weight',
+        value: lost,
+        title: `${lost} lbs Lost - BIG WIN!`,
+        description: `Amazing achievement: Lost ${lost} pounds!`,
+        isBig: true,
+      });
     }
 
     // Add major milestones (every 50 lbs)
     for (let lost = 50; lost <= totalWeightToLose; lost += 50) {
-      // Check if there's a custom reward for this milestone (don't duplicate)
-      const alreadyExists = milestones.some((m) => m.value === lost);
-      if (!alreadyExists) {
-        const customReward = this.customRewards.find(
-          (reward) => reward.type === 'weight' && reward.weightLoss === lost
-        );
-
-        milestones.push({
-          type: 'weight',
-          value: lost,
-          title: customReward
-            ? `${lost} lbs Lost - Custom Reward`
-            : `${lost} lbs Lost - MAJOR MILESTONE!`,
-          description: customReward
-            ? `Custom milestone: ${customReward.description}`
-            : `Incredible transformation: Lost ${lost} pounds!`,
-          isMajor: !customReward,
-          customReward: customReward || null,
-        });
-      }
+      milestones.push({
+        type: 'weight',
+        value: lost,
+        title: `${lost} lbs Lost - MAJOR MILESTONE!`,
+        description: `Incredible transformation: Lost ${lost} pounds!`,
+        isMajor: true,
+      });
     }
 
-    // Add any custom rewards that don't match the default pattern
+    // Add custom rewards ONLY if they don't match default milestone values
+    const defaultMilestoneValues = new Set();
+
+    // Collect all default milestone values (weight milestones + streak milestones)
+    milestones.forEach((milestone) =>
+      defaultMilestoneValues.add(`${milestone.type}-${milestone.value}`)
+    );
+
+    // Add default streak values
+    [7, 14, 30, 50, 100].forEach((days) =>
+      defaultMilestoneValues.add(`streak-${days}`)
+    );
+
     this.customRewards.forEach((reward) => {
-      if (reward.type === 'weight' && reward.weightLoss) {
-        // Check if this milestone already exists
-        const alreadyExists = milestones.some(
-          (m) => m.value === reward.weightLoss
-        );
-        if (!alreadyExists) {
+      const rewardKey = `${reward.type}-${
+        reward.weightLoss || reward.streakDays
+      }`;
+
+      // Only add as separate milestone if it's NOT a default milestone value
+      if (!defaultMilestoneValues.has(rewardKey)) {
+        if (reward.type === 'weight' && reward.weightLoss) {
           milestones.push({
             type: 'weight',
             value: reward.weightLoss,
@@ -2499,22 +2476,23 @@ class BribeYourselfFit {
             isCustom: true,
             customReward: reward,
           });
+        } else if (reward.type === 'streak' && reward.streakDays) {
+          milestones.push({
+            type: 'streak',
+            value: reward.streakDays,
+            title: `${reward.streakDays} Day Streak - Custom Reward`,
+            description: `Custom milestone: ${reward.description}`,
+            isCustom: true,
+            customReward: reward,
+          });
         }
-      } else if (reward.type === 'streak' && reward.streakDays) {
-        // Handle custom streak rewards
-        milestones.push({
-          type: 'streak',
-          value: reward.streakDays,
-          title: `${reward.streakDays} Day Streak - Custom Reward`,
-          description: `Custom milestone: ${reward.description}`,
-          isCustom: true,
-          customReward: reward,
-        });
       }
     });
 
     console.log(
-      `🎯 Generated ${milestones.length} milestones (including ${this.customRewards.length} custom rewards)`
+      `🎯 Generated ${milestones.length} milestones (excluded ${
+        this.customRewards.length - milestones.filter((m) => m.isCustom).length
+      } duplicate default rewards)`
     );
 
     return milestones;
