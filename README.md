@@ -341,6 +341,4 @@ BSD-3-Clause License - see [LICENSE](LICENSE) file for details.
 
 *JSONBin Cloud v1.1 - Enhanced with advanced settings and goal management*
 
----
-
 *Made with ❤️ & 🤖 assistance for the fitness and open-source communities*
