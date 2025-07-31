@@ -511,6 +511,4 @@ Ready for daily use as your complete real-time fitness tracking solution with th
 
 *Firebase Real-time v1.1 - Complete with real-time sync, weight unit conversion, custom rewards integration, and comprehensive Firebase features*
 
----
-
 *Made with ❤️ & 🤖 assistance for the fitness and open-source communities*
