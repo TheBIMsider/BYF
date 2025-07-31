@@ -16,6 +16,9 @@ This Firebase version was developed using cutting-edge AI-powered development to
 This demonstrates how AI tools enable domain experts to build sophisticated real-time applications with modern Firebase technologies and live data synchronization.
 
 ---
+## 📱 Screenshot
+
+<img width="1256" height="1073" alt="BYF_Firebase" src="https://github.com/user-attachments/assets/ca83f50c-4123-42be-9c8c-44cd4a894ea9" />
 
 ## 🚀 Quick Setup
 
