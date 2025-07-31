@@ -18,6 +18,8 @@ This showcases how AI tools enable domain experts to build sophisticated databas
 ---
 ## 📱 Screenshot
 
+<img width="1355" height="1080" alt="BFY_Airtable" src="https://github.com/user-attachments/assets/0fd30b8e-06c6-48c6-b961-dca1d10b56fb" />
+
 ## 🚀 Quick Setup
 
 ### 1. Copy the Airtable Base Template
