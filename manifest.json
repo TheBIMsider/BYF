@@ -1,7 +1,7 @@
 {
-  "name": "BribeYourselfFit - Firebase Fitness Tracker",
+  "name": "BribeYourselfFit - Personal Fitness Tracker",
   "short_name": "BribeYourselfFit",
-  "description": "Real-time gamified fitness tracking with Firebase synchronization",
+  "description": "Gamified fitness tracking with streak-based motivation",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
