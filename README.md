@@ -463,6 +463,6 @@ We'd love to hear from you! [Create an issue](https://github.com/TheBIMsider/BYF
 
 ---
 
-*localStorage v1.1 - Enhanced settings, processing indicators and your data stays in your browser only - ultimate privacy*
+*localStorage v1.1 - Enhanced settings, enhanced UX, processing indicators and your data stays in your browser only - ultimate privacy*
 
 *Made with ❤️ & 🤖 assistance for the fitness and open-source communities*
