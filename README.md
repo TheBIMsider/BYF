@@ -1,6 +1,6 @@
 # BribeYourselfFit - Airtable Database Version v1.1
 
-📊 **100% Complete structured database fitness tracking with Airtable's powerful features**
+📊 **Structured database fitness tracking with Airtable's powerful features**
 
 This version uses [Airtable](https://airtable.com) for data storage, providing a structured database with visual interface, rich field types, and powerful data management capabilities.
 
@@ -16,6 +16,7 @@ This Airtable version was developed using advanced AI-powered development tools:
 This showcases how AI tools enable domain experts to build sophisticated database-driven applications with modern API patterns and structured data relationships.
 
 ---
+## 📱 Screenshot
 
 ## 🚀 Quick Setup
 
