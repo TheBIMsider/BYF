@@ -2699,7 +2699,7 @@ class BribeYourselfFitCloud {
       weekStart.value = this.settings.weekStart;
     }
 
-    // Update daily goals inputs
+    // Update daily goals inputs with weight conversion
     if (this.currentUser) {
       const settingsSteps = document.getElementById('settingsSteps');
       const settingsExercise = document.getElementById('settingsExercise');
@@ -2709,14 +2709,48 @@ class BribeYourselfFitCloud {
       );
       const settingsGoalWeight = document.getElementById('settingsGoalWeight');
 
-      if (settingsSteps) settingsSteps.value = this.currentUser.dailySteps;
-      if (settingsExercise)
+      if (settingsSteps) {
+        settingsSteps.value = this.currentUser.dailySteps;
+        console.log('✅ Steps goal updated to:', this.currentUser.dailySteps);
+      }
+      if (settingsExercise) {
         settingsExercise.value = this.currentUser.dailyExercise;
-      if (settingsWater) settingsWater.value = this.currentUser.dailyWater;
-      if (settingsStartingWeight)
-        settingsStartingWeight.value = this.currentUser.startingWeight;
-      if (settingsGoalWeight)
-        settingsGoalWeight.value = this.currentUser.goalWeight;
+        console.log(
+          '✅ Exercise goal updated to:',
+          this.currentUser.dailyExercise
+        );
+      }
+      if (settingsWater) {
+        settingsWater.value = this.currentUser.dailyWater;
+        console.log('✅ Water goal updated to:', this.currentUser.dailyWater);
+      }
+
+      // Handle weight conversion for settings inputs
+      const weightUnit = this.settings?.weightUnit || 'lbs';
+      if (settingsStartingWeight) {
+        const displayStartingWeight =
+          weightUnit === 'kg'
+            ? (this.currentUser.startingWeight * 0.453592).toFixed(1)
+            : this.currentUser.startingWeight;
+        settingsStartingWeight.value = displayStartingWeight;
+        console.log(
+          '✅ Settings starting weight updated to:',
+          displayStartingWeight,
+          weightUnit
+        );
+      }
+      if (settingsGoalWeight) {
+        const displayGoalWeight =
+          weightUnit === 'kg'
+            ? (this.currentUser.goalWeight * 0.453592).toFixed(1)
+            : this.currentUser.goalWeight;
+        settingsGoalWeight.value = displayGoalWeight;
+        console.log(
+          '✅ Settings goal weight updated to:',
+          displayGoalWeight,
+          weightUnit
+        );
+      }
     }
 
     // Update goal threshold checkboxes
