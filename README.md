@@ -16,6 +16,9 @@ This cloud version was developed using cutting-edge AI-powered development tools
 This demonstrates how AI tools enable domain experts to build sophisticated cloud-integrated applications with modern web technologies and API patterns.
 
 ---
+## 📱 Screenshot
+
+<img width="1279" height="942" alt="BFY_JSONBin" src="https://github.com/user-attachments/assets/a2a16012-256a-48ed-9eee-950c4f14e4fe" />
 
 ## 🚀 Quick Setup
 
