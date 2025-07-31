@@ -190,7 +190,7 @@ git checkout jsonbin-version
 2. Enter API key during app setup
 3. Data syncs across devices automatically
 
-### **📊 Airtable Database v1.1** 
+### **📊 Airtable Database v1.1** [Readme](https://github.com/TheBIMsider/BYF/tree/airtable-version)
 ```bash
 git checkout airtable-version
 ```
