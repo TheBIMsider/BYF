@@ -2,16 +2,6 @@
 
 > 🎯 **Open-source, self-hosted fitness tracking with streak-based motivation**
 
-## 🤔 **Why This App Exists**
-
-Sometimes when you're trying to lose weight or be more active, you need accountability. But accountability means different things to different people. For some, it's just tracking numbers. For others - like me - you need an incentive, a motive, a real reason for doing something.
-
-Back in the 2000s when The Biggest Loser was popular, friends would get together for weight loss competitions. There'd be something on the line - $50, a night out, bragging rights - and the winner would take it all. That external motivation helped people actually track their stats, log their weights, and do the work.
-
-**But here's the thing:** Not everyone is motivated by money or new clothes or the same rewards. Every person's fitness journey is different.
-
-That's why BribeYourselfFit was born - a fitness tracker that lets you set your own rewards, your own "bribes" for hitting your goals. Whether it's a cheat meal after a 7-day streak, new workout gear at 30 days, or a weekend getaway at 100 days - you decide what motivates you.
-
 ## 🤖 **Built with AI-Assisted Development**
 
 This project was created using modern AI-powered development tools, demonstrating the power of human-AI collaboration in software development:
@@ -22,6 +12,16 @@ This project was created using modern AI-powered development tools, demonstratin
 - 🏗️ **Human Expertise**: AECO/BIM industry knowledge and project direction by [TheBIMsider](https://bio.link/thebimsider)
 
 **Why this matters:** This showcases how AI tools can help domain experts (like AECO professionals) create sophisticated web applications without traditional programming backgrounds, while maintaining high code quality and best practices through systematic debugging and iterative development.
+
+## 🤔 **Why This App Exists**
+
+Sometimes when you're trying to lose weight or be more active, you need accountability. But accountability means different things to different people. For some, it's just tracking numbers. For others - like me - you need an incentive, a motive, a real reason for doing something.
+
+Back in the 2000s when The Biggest Loser was popular, friends would get together for weight loss competitions. There'd be something on the line - $50, a night out, bragging rights - and the winner would take it all. That external motivation helped people actually track their stats, log their weights, and do the work.
+
+**But here's the thing:** Not everyone is motivated by money or new clothes or the same rewards. Every person's fitness journey is different.
+
+That's why BribeYourselfFit was born - a fitness tracker that lets you set your own rewards, your own "bribes" for hitting your goals. Whether it's a cheat meal after a 7-day streak, new workout gear at 30 days, or a weekend getaway at 100 days - you decide what motivates you.
 
 ## 🎮 **How It Works**
 
