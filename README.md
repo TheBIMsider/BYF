@@ -12,6 +12,17 @@ Back in the 2000s when The Biggest Loser was popular, friends would get together
 
 That's why BribeYourselfFit was born - a fitness tracker that lets you set your own rewards, your own "bribes" for hitting your goals. Whether it's a cheat meal after a 7-day streak, new workout gear at 30 days, or a weekend getaway at 100 days - you decide what motivates you.
 
+## 🤖 **Built with AI-Assisted Development**
+
+This project was created using modern AI-powered development tools, demonstrating the power of human-AI collaboration in software development:
+
+- ⚡ **Live Coding Sessions**: Built live using AI pair programming and systematic debugging
+- 🧠 **Claude (Anthropic)**: Primary AI assistant for architecture, code generation, documentation, and problem-solving
+- 👨‍💻 **GitHub Copilot**: Code completion and intelligent suggestions
+- 🏗️ **Human Expertise**: AECO/BIM industry knowledge and project direction by [TheBIMsider](https://bio.link/thebimsider)
+
+**Why this matters:** This showcases how AI tools can help domain experts (like AECO professionals) create sophisticated web applications without traditional programming backgrounds, while maintaining high code quality and best practices through systematic debugging and iterative development.
+
 ## 🎮 **How It Works**
 
 BribeYourselfFit combines simple daily tracking with powerful motivation:
@@ -78,17 +89,6 @@ BribeYourselfFit offers multiple storage options to fit your needs:
 | 🌐 **JSONBin.io** | Cloud API | API key | Cross-device sync, simple cloud | `jsonbin-version` | ✅ v1.1 Ready |
 | 📊 **Airtable** | Structured DB | API setup | Rich data features, sharing | `airtable-version` | ✅ v1.1 Ready |
 | 🔥 **Firebase** | Real-time DB | Project setup | Enterprise scale, real-time sync | `firebase-version` | ✅ v1.1 Ready |
-
-## 🤖 **Built with AI-Assisted Development**
-
-This project was created using modern AI-powered development tools, demonstrating the power of human-AI collaboration in software development:
-
-- ⚡ **Live Coding Sessions**: Built live using AI pair programming and systematic debugging
-- 🧠 **Claude (Anthropic)**: Primary AI assistant for architecture, code generation, documentation, and problem-solving
-- 👨‍💻 **GitHub Copilot**: Code completion and intelligent suggestions
-- 🏗️ **Human Expertise**: AECO/BIM industry knowledge and project direction by [TheBIMsider](https://bio.link/thebimsider)
-
-**Why this matters:** This showcases how AI tools can help domain experts (like AECO professionals) create sophisticated web applications without traditional programming backgrounds, while maintaining high code quality and best practices through systematic debugging and iterative development.
 
 ---
 
