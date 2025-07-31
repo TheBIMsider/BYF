@@ -182,7 +182,7 @@ This project was created using modern AI-powered development tools, demonstratin
 - Perfect for getting started
 - **New in v1.1**: Advanced settings, goal management, data import/export, **processing indicators**
 
-### **🌐 JSONBin.io Cloud v1.1**
+### **🌐 JSONBin.io Cloud v1.1** [(Readme)](https://github.com/TheBIMsider/BYF/tree/jsonbin-version)
 ```bash
 git checkout jsonbin-version
 ```
@@ -190,7 +190,7 @@ git checkout jsonbin-version
 2. Enter API key during app setup
 3. Data syncs across devices automatically
 
-### **📊 Airtable Database v1.1** [Readme](https://github.com/TheBIMsider/BYF/tree/airtable-version)
+### **📊 Airtable Database v1.1** [(Readme)](https://github.com/TheBIMsider/BYF/tree/airtable-version)
 ```bash
 git checkout airtable-version
 ```
@@ -203,7 +203,7 @@ git checkout airtable-version
    - **Real-time database sync** across all tables
    - **Enterprise-level field validation** and error handling
 
-### **🔥 Firebase Real-time v1.1** ✅
+### **🔥 Firebase Real-time v1.1** [(Readme)](https://github.com/TheBIMsider/BYF/tree/firebase-version)
 ```bash
 git checkout firebase-version
 ```
