@@ -514,6 +514,4 @@ Ready for daily use as your complete fitness tracking solution with the power of
 
 *Airtable Database v1.1 - Complete with all 5 tables syncing, weight unit conversion, custom rewards integration, and comprehensive database features*
 
----
-
 *Made with ❤️ & 🤖 assistance for the fitness and open-source communities*
