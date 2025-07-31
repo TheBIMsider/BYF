@@ -600,11 +600,32 @@ class BribeYourselfFitCloud {
         settingsWater.value = this.currentUser.dailyWater;
         console.log('✅ Water goal updated to:', this.currentUser.dailyWater);
       }
+
+      // Handle weight conversion for settings inputs
+      const weightUnit = this.settings?.weightUnit || 'lbs';
       if (settingsStartingWeight) {
-        settingsStartingWeight.value = this.currentUser.startingWeight;
+        const displayStartingWeight =
+          weightUnit === 'kg'
+            ? (this.currentUser.startingWeight * 0.453592).toFixed(1)
+            : this.currentUser.startingWeight;
+        settingsStartingWeight.value = displayStartingWeight;
+        console.log(
+          '✅ Settings starting weight updated to:',
+          displayStartingWeight,
+          weightUnit
+        );
       }
       if (settingsGoalWeight) {
-        settingsGoalWeight.value = this.currentUser.goalWeight;
+        const displayGoalWeight =
+          weightUnit === 'kg'
+            ? (this.currentUser.goalWeight * 0.453592).toFixed(1)
+            : this.currentUser.goalWeight;
+        settingsGoalWeight.value = displayGoalWeight;
+        console.log(
+          '✅ Settings goal weight updated to:',
+          displayGoalWeight,
+          weightUnit
+        );
       }
     }
 
@@ -692,6 +713,36 @@ class BribeYourselfFitCloud {
       setTimeout(() => {
         this.renderWeightChart();
       }, 100);
+    }
+
+    // Update settings input values if we're on the settings tab
+    if (this.currentTab === 'settings' && this.currentUser) {
+      const settingsStartingWeight = document.getElementById(
+        'settingsStartingWeight'
+      );
+      const settingsGoalWeight = document.getElementById('settingsGoalWeight');
+
+      if (settingsStartingWeight) {
+        const displayStartingWeight =
+          weightUnit === 'kg'
+            ? (this.currentUser.startingWeight * 0.453592).toFixed(1)
+            : this.currentUser.startingWeight;
+        settingsStartingWeight.value = displayStartingWeight;
+        console.log(
+          `✅ Settings starting weight updated to: ${displayStartingWeight} ${weightUnit}`
+        );
+      }
+
+      if (settingsGoalWeight) {
+        const displayGoalWeight =
+          weightUnit === 'kg'
+            ? (this.currentUser.goalWeight * 0.453592).toFixed(1)
+            : this.currentUser.goalWeight;
+        settingsGoalWeight.value = displayGoalWeight;
+        console.log(
+          `✅ Settings goal weight updated to: ${displayGoalWeight} ${weightUnit}`
+        );
+      }
     }
 
     console.log(`✅ Weight displays update complete for ${weightUnit}`);
@@ -3586,6 +3637,10 @@ class BribeYourselfFitCloud {
       console.log(`🔄 Weight unit changed to: ${value}`);
       // Update all weight displays immediately
       this.updateWeightDisplays();
+      // Also update the settings display to convert the input values
+      setTimeout(() => {
+        this.updateSettingsDisplay();
+      }, 100);
     } else if (setting === 'dateFormat') {
       // Update date displays if needed
       this.updateCurrentDate();
