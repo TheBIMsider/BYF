@@ -28,13 +28,20 @@
     <header class="header">
       <div class="header-content">
         <div class="logo">BribeYourselfFit</div>
-        <button
-          class="theme-toggle"
-          id="themeToggle"
-          aria-label="Toggle dark mode"
-        >
-          🌙 Dark Mode
-        </button>
+        <div class="header-controls">
+          <!-- Processing Status Indicator -->
+          <div class="processing-status hidden" id="processingStatus">
+            <span class="processing-icon">⏳</span>
+            <span class="processing-text">Processing...</span>
+          </div>
+          <button
+            class="theme-toggle"
+            id="themeToggle"
+            aria-label="Toggle dark mode"
+          >
+            🌙 Dark Mode
+          </button>
+        </div>
       </div>
     </header>
 

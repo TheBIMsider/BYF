@@ -430,35 +430,50 @@ class BribeYourselfFit {
    * Handle general setting changes
    */
   handleSettingChange(e) {
-    const setting = e.target.id;
-    const value =
-      e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    try {
+      const setting = e.target.id;
+      const value =
+        e.target.type === 'checkbox' ? e.target.checked : e.target.value;
 
-    console.log(`🔧 Setting changed: ${setting} = ${value}`);
+      console.log(`🔧 Setting changed: ${setting} = ${value}`);
 
-    this.settings[setting] = value;
-    this.saveSettings();
+      this.settings[setting] = value;
+      this.saveSettings();
 
-    // Add these two debug lines HERE
-    console.log('💾 Current settings after save:', this.settings);
-    console.log(
-      '💾 Saved to localStorage:',
-      localStorage.getItem('byf_settings')
-    );
+      console.log('💾 Current settings after save:', this.settings);
+      console.log(
+        '💾 Saved to localStorage:',
+        localStorage.getItem('byf_settings')
+      );
 
-    // Apply certain settings immediately (KEEP THIS EXISTING CODE)
-    if (setting === 'weekStart') {
-      // Re-render calendar if it's currently visible
-      if (this.currentTab === 'charts') {
-        this.renderStreakCalendar();
+      // Apply certain settings immediately with error handling
+      if (setting === 'weekStart') {
+        // Re-render calendar if it's currently visible
+        if (this.currentTab === 'charts') {
+          this.renderStreakCalendar();
+        }
+      } else if (setting === 'weightUnit') {
+        console.log(`🔄 Weight unit changed to: ${value}`);
+        try {
+          // Update all weight displays immediately
+          this.updateWeightDisplays();
+          // Force update settings display after a short delay
+          setTimeout(() => {
+            this.updateSettingsDisplay();
+          }, 100);
+        } catch (weightError) {
+          console.error('Weight display update error:', weightError);
+        }
+      } else if (setting === 'dateFormat') {
+        // Update date displays if needed
+        this.updateCurrentDate();
       }
-    } else if (setting === 'weightUnit') {
-      console.log(`🔄 Weight unit changed to: ${value}`);
-      // Update all weight displays immediately
-      this.updateWeightDisplays();
-    } else if (setting === 'dateFormat') {
-      // Update date displays if needed
-      this.updateCurrentDate();
+    } catch (error) {
+      console.error('Settings change error:', error);
+      // Still try to save the basic setting even if UI updates fail
+      this.settings[e.target.id] =
+        e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+      this.saveSettings();
     }
   }
 
@@ -539,15 +554,24 @@ class BribeYourselfFit {
   }
 
   /**
-   * Handle weight goals update
+   * Handle weight goals update (with unit conversion)
    */
   handleUpdateWeightGoals() {
     const goalWeightInput = document.getElementById('settingsGoalWeight');
-    const goalWeight = parseFloat(goalWeightInput.value);
+    const inputValue = parseFloat(goalWeightInput.value);
 
-    // Validate input
-    if (isNaN(goalWeight) || goalWeight < 50 || goalWeight > 1000) {
-      this.showError('Goal weight must be between 50 and 1000 lbs');
+    // Convert displayed value back to lbs for storage
+    const weightUnit = this.settings?.weightUnit || 'lbs';
+    const goalWeight = this.convertWeight(inputValue, weightUnit, 'lbs');
+
+    // Validate input (check ranges in appropriate unit)
+    const minWeight = weightUnit === 'kg' ? 22.7 : 50; // 50 lbs = 22.7 kg
+    const maxWeight = weightUnit === 'kg' ? 453.6 : 1000; // 1000 lbs = 453.6 kg
+
+    if (isNaN(inputValue) || inputValue < minWeight || inputValue > maxWeight) {
+      this.showError(
+        `Goal weight must be between ${minWeight} and ${maxWeight} ${weightUnit}`
+      );
       return;
     }
 
@@ -558,7 +582,7 @@ class BribeYourselfFit {
       return;
     }
 
-    // Update goal weight
+    // Update goal weight (stored in lbs)
     this.currentUser.goalWeight = goalWeight;
 
     // Regenerate weight milestones
@@ -573,20 +597,29 @@ class BribeYourselfFit {
    * Export all data
    */
   exportAllData() {
-    const exportData = {
-      user: this.currentUser,
-      dailyLogs: this.dailyLogs,
-      streaks: this.streaks,
-      customRewards: this.customRewards,
-      achievements: this.achievements,
-      settings: this.settings,
-      exportDate: new Date().toISOString(),
-      exportType: 'complete',
-      version: '1.0.0-localStorage',
-    };
+    this.showProcessing('Preparing export...');
 
-    this.downloadData(exportData, 'complete_backup');
-    this.showSuccess('Complete data exported successfully!');
+    try {
+      const exportData = {
+        user: this.currentUser,
+        dailyLogs: this.dailyLogs,
+        streaks: this.streaks,
+        customRewards: this.customRewards,
+        achievements: this.achievements,
+        settings: this.settings,
+        exportDate: new Date().toISOString(),
+        exportType: 'complete',
+        version: '1.0.0-localStorage',
+      };
+
+      this.downloadData(exportData, 'complete_backup');
+      this.showProcessingSuccess('Export ready!');
+      this.showSuccess('Complete data exported successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      this.showProcessingError('Export failed');
+      this.showError('Failed to export data');
+    }
   }
 
   /**
@@ -692,9 +725,6 @@ class BribeYourselfFit {
     };
   }
 
-  /**
-   * Load settings from storage
-   */
   loadSettingsFromStorage() {
     try {
       const savedSettings = localStorage.getItem('byf_settings');
@@ -722,7 +752,7 @@ class BribeYourselfFit {
       this.settings = this.getDefaultSettings();
     }
 
-    // Apply initial UI updates based on loaded settings
+    // Apply weight unit changes on load
     if (this.settings.weightUnit && this.settings.weightUnit !== 'lbs') {
       setTimeout(() => {
         this.updateWeightDisplays();
@@ -768,30 +798,34 @@ class BribeYourselfFit {
     const weightToGoEl = document.getElementById('weightToGoDisplay');
 
     if (currentWeightEl) {
-      const currentWeight =
-        weightUnit === 'kg'
-          ? (this.currentUser.currentWeight * 0.453592).toFixed(1)
-          : this.currentUser.currentWeight;
+      const currentWeight = this.convertWeight(
+        this.currentUser.currentWeight,
+        'lbs',
+        weightUnit
+      );
       currentWeightEl.textContent = `${currentWeight} ${weightUnit}`;
     }
 
     if (goalWeightEl) {
-      const goalWeight =
-        weightUnit === 'kg'
-          ? (this.currentUser.goalWeight * 0.453592).toFixed(1)
-          : this.currentUser.goalWeight;
+      const goalWeight = this.convertWeight(
+        this.currentUser.goalWeight,
+        'lbs',
+        weightUnit
+      );
       goalWeightEl.textContent = `${goalWeight} ${weightUnit}`;
     }
 
     if (weightToGoEl) {
-      const currentWeight =
-        weightUnit === 'kg'
-          ? this.currentUser.currentWeight * 0.453592
-          : this.currentUser.currentWeight;
-      const goalWeight =
-        weightUnit === 'kg'
-          ? this.currentUser.goalWeight * 0.453592
-          : this.currentUser.goalWeight;
+      const currentWeight = this.convertWeight(
+        this.currentUser.currentWeight,
+        'lbs',
+        weightUnit
+      );
+      const goalWeight = this.convertWeight(
+        this.currentUser.goalWeight,
+        'lbs',
+        weightUnit
+      );
       const weightToGo = Math.abs(currentWeight - goalWeight);
       weightToGoEl.textContent = `${weightToGo.toFixed(1)} ${weightUnit}`;
     }
@@ -814,6 +848,30 @@ class BribeYourselfFit {
         console.log(
           `✅ Updated label ${index}: "${originalText}" → "${newText}"`
         );
+      }
+    });
+
+    // Also update settings weight labels specifically by text content
+    const settingsWeightLabels = document.querySelectorAll('label');
+    settingsWeightLabels.forEach((label, index) => {
+      const originalText = label.textContent;
+
+      // Check if this is a weight-related label
+      if (
+        originalText.includes('Starting Weight') ||
+        originalText.includes('Goal Weight')
+      ) {
+        // Remove any existing unit indicators and add the current one
+        let newText = originalText.replace(/\s*\([^)]*\)[^)]*$/g, ''); // Remove (lbs) or (kg) and anything after
+        newText = newText.replace(/\s*-\s*(lbs|kg)\s*$/g, ''); // Remove trailing - lbs or - kg
+        newText = `${newText} (${weightUnit})`;
+
+        if (originalText !== newText) {
+          label.textContent = newText;
+          console.log(
+            `✅ Updated settings label ${index}: "${originalText}" → "${newText}"`
+          );
+        }
       }
     });
 
@@ -889,10 +947,35 @@ class BribeYourselfFit {
       if (settingsExercise)
         settingsExercise.value = this.currentUser.dailyExercise;
       if (settingsWater) settingsWater.value = this.currentUser.dailyWater;
-      if (settingsStartingWeight)
-        settingsStartingWeight.value = this.currentUser.startingWeight;
-      if (settingsGoalWeight)
-        settingsGoalWeight.value = this.currentUser.goalWeight;
+
+      // Handle weight conversion for settings inputs
+      const weightUnit = this.settings?.weightUnit || 'lbs';
+      if (settingsStartingWeight) {
+        const displayStartingWeight = this.convertWeight(
+          this.currentUser.startingWeight,
+          'lbs',
+          weightUnit
+        );
+        settingsStartingWeight.value = displayStartingWeight;
+        console.log(
+          '✅ Settings starting weight updated to:',
+          displayStartingWeight,
+          weightUnit
+        );
+      }
+      if (settingsGoalWeight) {
+        const displayGoalWeight = this.convertWeight(
+          this.currentUser.goalWeight,
+          'lbs',
+          weightUnit
+        );
+        settingsGoalWeight.value = displayGoalWeight;
+        console.log(
+          '✅ Settings goal weight updated to:',
+          displayGoalWeight,
+          weightUnit
+        );
+      }
     }
 
     // Update goal threshold checkboxes
@@ -947,35 +1030,27 @@ class BribeYourselfFit {
   }
 
   /**
-   * Update app information display
+   * Weight unit conversion methods
    */
-  updateAppInfo() {
-    const totalEntriesEl = document.getElementById('totalDataEntries');
-    const storageUsedEl = document.getElementById('storageUsed');
-    const profileCreatedEl = document.getElementById('profileCreated');
+  convertWeight(weight, fromUnit, toUnit) {
+    if (!weight || fromUnit === toUnit) return weight;
 
-    if (totalEntriesEl) {
-      totalEntriesEl.textContent = Object.keys(
-        this.dailyLogs
-      ).length.toString();
+    if (fromUnit === 'lbs' && toUnit === 'kg') {
+      return Math.round(weight * 0.453592 * 10) / 10; // Round to 1 decimal
+    } else if (fromUnit === 'kg' && toUnit === 'lbs') {
+      return Math.round((weight / 0.453592) * 10) / 10; // Round to 1 decimal
     }
+    return weight;
+  }
 
-    if (storageUsedEl) {
-      const dataSize = JSON.stringify({
-        user: this.currentUser,
-        dailyLogs: this.dailyLogs,
-        streaks: this.streaks,
-        customRewards: this.customRewards,
-        achievements: this.achievements,
-        settings: this.settings,
-      }).length;
-      storageUsedEl.textContent = `~${Math.round(dataSize / 1024)} KB`;
-    }
+  getCurrentWeightUnit() {
+    return this.settings?.weightUnit || 'lbs';
+  }
 
-    if (profileCreatedEl && this.currentUser && this.currentUser.setupDate) {
-      const setupDate = new Date(this.currentUser.setupDate);
-      profileCreatedEl.textContent = setupDate.toLocaleDateString();
-    }
+  formatWeightDisplay(weight) {
+    if (!weight) return '';
+    const unit = this.getCurrentWeightUnit();
+    return `${weight} ${unit}`;
   }
 
   /**
@@ -1144,131 +1219,150 @@ class BribeYourselfFit {
   async handleDailyLog(e) {
     e.preventDefault();
 
-    this.debugFormSave(); // Add this line for debugging
+    // Show processing indicator at the start
+    this.showProcessing('Saving daily log...');
 
-    const today = this.currentDate;
+    try {
+      this.debugFormSave(); // Add this line for debugging
 
-    // Get form values - CORRECTED VERSION (same fix as before)
-    const weightInput = document.getElementById('todayWeight');
-    const stepsInput = document.getElementById('todaySteps');
-    const exerciseInput = document.getElementById('todayExerciseMinutes');
-    const waterInput = document.getElementById('todayWater');
+      const today = this.currentDate;
 
-    // Check if inputs exist and have values
-    const weight =
-      weightInput && weightInput.value !== ''
-        ? parseFloat(weightInput.value)
-        : null;
-    const steps =
-      stepsInput && stepsInput.value !== '' ? parseInt(stepsInput.value) : 0;
-    const exerciseMinutes =
-      exerciseInput && exerciseInput.value !== ''
-        ? parseInt(exerciseInput.value)
-        : 0;
-    const water =
-      waterInput && waterInput.value !== '' ? parseFloat(waterInput.value) : 0;
+      // Get form values - CORRECTED VERSION (same fix as before)
+      const weightInput = document.getElementById('todayWeight');
+      const stepsInput = document.getElementById('todaySteps');
+      const exerciseInput = document.getElementById('todayExerciseMinutes');
+      const waterInput = document.getElementById('todayWater');
 
-    // Debug what we're actually getting (you can remove these console.log lines later)
-    console.log('Input elements:', {
-      weightInput,
-      stepsInput,
-      exerciseInput,
-      waterInput,
-    });
-    console.log('Raw values:', {
-      weight: weightInput?.value,
-      steps: stepsInput?.value,
-      exercise: exerciseInput?.value,
-      water: waterInput?.value,
-    });
-    console.log('Parsed values:', { weight, steps, exerciseMinutes, water });
+      // Check if inputs exist and have values
+      const weight =
+        weightInput && weightInput.value !== ''
+          ? parseFloat(weightInput.value)
+          : null;
+      const steps =
+        stepsInput && stepsInput.value !== '' ? parseInt(stepsInput.value) : 0;
+      const exerciseMinutes =
+        exerciseInput && exerciseInput.value !== ''
+          ? parseInt(exerciseInput.value)
+          : 0;
+      const water =
+        waterInput && waterInput.value !== ''
+          ? parseFloat(waterInput.value)
+          : 0;
 
-    // Get selected exercise types
-    const exerciseTypes = Array.from(
-      document.querySelectorAll('.exercise-checkbox:checked')
-    ).map((cb) => cb.value);
+      // Debug what we're actually getting (you can remove these console.log lines later)
+      console.log('Input elements:', {
+        weightInput,
+        stepsInput,
+        exerciseInput,
+        waterInput,
+      });
+      console.log('Raw values:', {
+        weight: weightInput?.value,
+        steps: stepsInput?.value,
+        exercise: exerciseInput?.value,
+        water: waterInput?.value,
+      });
+      console.log('Parsed values:', { weight, steps, exerciseMinutes, water });
 
-    // Get wellness score
-    const wellnessItems = Array.from(
-      document.querySelectorAll('.wellness-checkbox:checked')
-    ).map((cb) => cb.dataset.wellness);
-    const wellnessScore = wellnessItems.length;
+      // Get selected exercise types
+      const exerciseTypes = Array.from(
+        document.querySelectorAll('.exercise-checkbox:checked')
+      ).map((cb) => cb.value);
 
-    // Debug log to see what we're getting
-    console.log('Form data collected:', {
-      weight,
-      steps,
-      exerciseMinutes,
-      water,
-      exerciseTypes,
-      wellnessScore,
-    });
+      // Get wellness score
+      const wellnessItems = Array.from(
+        document.querySelectorAll('.wellness-checkbox:checked')
+      ).map((cb) => cb.dataset.wellness);
+      const wellnessScore = wellnessItems.length;
 
-    // Validate data
-    if (
-      !(await this.validateDailyLog(
+      // Debug log to see what we're getting
+      console.log('Form data collected:', {
         weight,
         steps,
         exerciseMinutes,
         water,
-        exerciseTypes
-      ))
-    ) {
-      return;
-    }
+        exerciseTypes,
+        wellnessScore,
+      });
 
-    // Create daily log entry
-    const logEntry = {
-      date: today,
-      weight,
-      steps,
-      exerciseMinutes,
-      exerciseTypes,
-      water,
-      wellnessScore,
-      wellnessItems,
-      timestamp: new Date().toISOString(),
-    };
-
-    console.log('Saving log entry:', logEntry); // Debug log
-
-    // Save log entry
-    this.dailyLogs[today] = logEntry;
-
-    // Update user's current weight if provided
-    if (weight) {
-      this.currentUser.currentWeight = weight;
-      this.currentUser.lastWeightUpdate = new Date().toISOString();
-    }
-
-    // Update streaks
-    this.updateStreaks(logEntry);
-
-    // Save all data
-    this.saveData();
-
-    // Update dashboard
-    this.updateDashboard();
-
-    // Check for achievements
-    this.checkAchievements();
-
-    // Performance check for large datasets
-    const logCount = Object.keys(this.dailyLogs).length;
-    if (logCount > 365) {
-      // More than 1 year of data
-      console.log(`Performance: Managing ${logCount} daily logs`);
-      // Optionally compress old data or suggest export
-      if (logCount > 730 && logCount % 30 === 0) {
-        // Every 30 entries after 2 years
-        this.showSuccess(
-          `Daily log saved! You have ${logCount} entries. Consider exporting older data for better performance.`
-        );
+      // Validate data
+      if (
+        !(await this.validateDailyLog(
+          weight,
+          steps,
+          exerciseMinutes,
+          water,
+          exerciseTypes
+        ))
+      ) {
+        // Hide processing indicator if validation fails
+        this.hideProcessing();
         return;
       }
-    }
 
-    this.showSuccess('Daily log saved successfully!');
+      // Update processing message
+      this.showProcessing('Processing data...');
+
+      // Create daily log entry
+      const logEntry = {
+        date: today,
+        weight,
+        steps,
+        exerciseMinutes,
+        exerciseTypes,
+        water,
+        wellnessScore,
+        wellnessItems,
+        timestamp: new Date().toISOString(),
+      };
+
+      console.log('Saving log entry:', logEntry); // Debug log
+
+      // Save log entry
+      this.dailyLogs[today] = logEntry;
+
+      // Update user's current weight if provided
+      if (weight) {
+        this.currentUser.currentWeight = weight;
+        this.currentUser.lastWeightUpdate = new Date().toISOString();
+      }
+
+      // Update streaks
+      this.updateStreaks(logEntry);
+
+      // Save all data
+      this.saveData();
+
+      // Update dashboard
+      this.updateDashboard();
+
+      // Check for achievements
+      this.checkAchievements();
+
+      // Show success processing indicator
+      this.showProcessingSuccess('Daily log saved!');
+
+      // Performance check for large datasets
+      const logCount = Object.keys(this.dailyLogs).length;
+      if (logCount > 365) {
+        // More than 1 year of data
+        console.log(`Performance: Managing ${logCount} daily logs`);
+        // Optionally compress old data or suggest export
+        if (logCount > 730 && logCount % 30 === 0) {
+          // Every 30 entries after 2 years
+          this.showSuccess(
+            `Daily log saved! You have ${logCount} entries. Consider exporting older data for better performance.`
+          );
+          return;
+        }
+      }
+
+      this.showSuccess('Daily log saved successfully!');
+    } catch (error) {
+      console.error('Daily log save error:', error);
+      this.showProcessingError('Save failed');
+      this.showError('Failed to save daily log');
+    }
   }
 
   /**
@@ -1699,6 +1793,7 @@ class BribeYourselfFit {
    */
   loadChartsTab() {
     console.log('Loading charts tab...');
+    this.showProcessing('Loading charts...');
 
     // Check if mobile device
     const isMobile = window.innerWidth <= 768;
@@ -1720,8 +1815,10 @@ class BribeYourselfFit {
             this.renderStreakCalendar();
           }
           console.log('Charts rendered successfully');
+          this.showProcessingSuccess('Charts loaded!');
         } catch (error) {
           console.error('Error rendering charts:', error);
+          this.showProcessingError('Chart loading failed');
         }
       }, delay);
     });
@@ -3131,6 +3228,73 @@ class BribeYourselfFit {
    */
   showError(message) {
     alert(`Error: ${message}`);
+  }
+
+  /**
+   * Show processing indicator
+   */
+  showProcessing(message = 'Processing...') {
+    const processingEl = document.getElementById('processingStatus');
+    const iconEl = processingEl?.querySelector('.processing-icon');
+    const textEl = processingEl?.querySelector('.processing-text');
+
+    if (processingEl && iconEl && textEl) {
+      iconEl.textContent = '⏳';
+      textEl.textContent = message;
+      processingEl.className = 'processing-status processing';
+      processingEl.classList.remove('hidden');
+    }
+  }
+
+  /**
+   * Hide processing indicator
+   */
+  hideProcessing() {
+    const processingEl = document.getElementById('processingStatus');
+    if (processingEl) {
+      processingEl.classList.add('hidden');
+      processingEl.className = 'processing-status hidden';
+    }
+  }
+
+  /**
+   * Show processing success briefly
+   */
+  showProcessingSuccess(message = 'Complete!', duration = 2000) {
+    const processingEl = document.getElementById('processingStatus');
+    const iconEl = processingEl?.querySelector('.processing-icon');
+    const textEl = processingEl?.querySelector('.processing-text');
+
+    if (processingEl && iconEl && textEl) {
+      iconEl.textContent = '✅';
+      textEl.textContent = message;
+      processingEl.className = 'processing-status success';
+      processingEl.classList.remove('hidden');
+
+      setTimeout(() => {
+        this.hideProcessing();
+      }, duration);
+    }
+  }
+
+  /**
+   * Show processing error briefly
+   */
+  showProcessingError(message = 'Error occurred', duration = 3000) {
+    const processingEl = document.getElementById('processingStatus');
+    const iconEl = processingEl?.querySelector('.processing-icon');
+    const textEl = processingEl?.querySelector('.processing-text');
+
+    if (processingEl && iconEl && textEl) {
+      iconEl.textContent = '❌';
+      textEl.textContent = message;
+      processingEl.className = 'processing-status error';
+      processingEl.classList.remove('hidden');
+
+      setTimeout(() => {
+        this.hideProcessing();
+      }, duration);
+    }
   }
 
   /**
