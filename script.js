@@ -1,24 +1,25 @@
 /**
- * BribeYourselfFit - Airtable Version Integration
+ * BribeYourselfFit - Firebase Real-time Database Version Integration
  *
  * This JavaScript file implements a complete fitness tracking system with:
- * - Cloud storage via Airtable API
+ * - Cloud storage via Firebase Realtime Database
+ * - Real-time data synchronization across devices
  * - Offline-first sync with localStorage backup
  * - Real-time sync status indicators
  * - Progressive error handling and fallback
  * - Identical UX to localStorage version
- * - Structured database with relational data
+ * - Structured JSON database with real-time updates
  *
- * Airtable Storage Architecture:
- * - Primary: Airtable structured database (5 tables)
+ * Firebase Storage Architecture:
+ * - Primary: Firebase Realtime Database (JSON structure)
  * - Backup: localStorage for offline functionality
- * - Sync Strategy: Offline-first with background sync
+ * - Sync Strategy: Real-time with offline persistence
  * - Error Handling: Progressive fallback with user feedback
- * - Data Structure: Relational tables vs flat JSON
- * - Enhanced Features: Field validation, data types, visual interface
+ * - Data Structure: Hierarchical JSON with real-time listeners
+ * - Enhanced Features: Real-time updates, offline persistence, authentication
  */
 
-class BribeYourselfFitCloud {
+class BribeYourselfFitFirebase {
   constructor() {
     // Initialize app state
     this.currentUser = null;
@@ -31,22 +32,28 @@ class BribeYourselfFitCloud {
     this.chartPeriod = 7;
     this.currentDate = new Date().toISOString().split('T')[0];
 
-    // Airtable configuration
-    this.cloudConfig = {
-      token: null,
-      baseId: null,
-      tableIds: {
-        users: null,
-        dailyLogs: null,
-        settings: null,
-        customRewards: null,
-        achievements: null,
-      },
+    // Firebase configuration
+    this.firebaseConfig = {
+      apiKey: null,
+      authDomain: null,
+      databaseURL: null,
+      projectId: null,
+      storageBucket: null,
+      messagingSenderId: null,
+      appId: null,
       isConnected: false,
+      app: null,
+      database: null,
+      auth: null,
+      currentUser: null,
+      database: null,
+      auth: null,
       lastSync: null,
       syncInProgress: false,
       retryCount: 0,
       maxRetries: 3,
+      realTimeListeners: {},
+      offlineQueue: [],
     };
 
     // Sync queue for offline-first functionality
@@ -71,71 +78,68 @@ class BribeYourselfFitCloud {
    */
   init() {
     this.loadLocalData();
-    this.loadCloudConfig();
+    this.loadFirebaseConfig();
     this.setupEventListeners();
     this.updateCurrentDate();
 
     // Show setup screen if no user profile exists or credentials missing
     if (
       !this.currentUser ||
-      !this.cloudConfig.token ||
-      !this.cloudConfig.baseId
+      !this.firebaseConfig.apiKey ||
+      !this.firebaseConfig.databaseURL
     ) {
       this.showSetupScreen();
     } else {
       this.showAppScreen();
       this.updateDashboard();
-      this.initializeCloudSync();
+      this.initializeFirebaseSync();
     }
   }
 
   /**
-   * Load cloud configuration from localStorage
+   * Load Firebase configuration from localStorage
    */
-  loadCloudConfig() {
+  loadFirebaseConfig() {
     try {
-      const savedConfig = localStorage.getItem('byf_cloud_config');
+      const savedConfig = localStorage.getItem('byf_firebase_config');
       if (savedConfig) {
         const parsed = JSON.parse(savedConfig);
-        this.cloudConfig = { ...this.cloudConfig, ...parsed };
+        this.firebaseConfig = { ...this.firebaseConfig, ...parsed };
 
-        // Ensure tableIds object exists for backward compatibility
-        if (!this.cloudConfig.tableIds) {
-          this.cloudConfig.tableIds = {
-            users: null,
-            dailyLogs: null,
-            settings: null,
-            customRewards: null,
-            achievements: null,
-          };
+        // Ensure required Firebase properties exist
+        if (!this.firebaseConfig.realTimeListeners) {
+          this.firebaseConfig.realTimeListeners = {};
+        }
+        if (!this.firebaseConfig.offlineQueue) {
+          this.firebaseConfig.offlineQueue = [];
         }
       }
     } catch (error) {
-      console.error('Error loading cloud config:', error);
-      this.showError('Failed to load cloud configuration. Using defaults.');
+      console.error('Error loading Firebase config:', error);
+      this.showError('Failed to load Firebase configuration. Using defaults.');
     }
   }
 
   /**
-   * Export cloud data
+   * Export Firebase data
    */
-  async exportCloudData() {
-    if (!this.cloudConfig.isConnected) {
-      this.showError('Not connected to cloud storage');
+  async exportFirebaseData() {
+    if (!this.firebaseConfig.isConnected) {
+      this.showError('Not connected to Firebase storage');
       return;
     }
 
     try {
-      const cloudData = await this.loadFromCloud();
-      if (cloudData) {
-        this.downloadData(cloudData, 'cloud');
-        this.showSuccess('Cloud data exported successfully!');
+      const firebaseData = await this.loadFromFirebase();
+      if (firebaseData) {
+        this.downloadData(firebaseData, 'firebase');
+        this.showSuccess('Firebase data exported successfully!');
       } else {
-        this.showError('No cloud data found');
+        this.showError('No Firebase data found');
       }
     } catch (error) {
-      console.error('Export cloud data error:', error);
-      this.showError('Failed to export cloud data');
+      console.error('Export Firebase data error:', error);
+      this.showError('Failed to export Firebase data');
     }
   }
 
@@ -151,7 +155,7 @@ class BribeYourselfFitCloud {
       achievements: this.achievements,
       exportDate: new Date().toISOString(),
       exportType: 'local',
-      version: '1.1.0-cloud',
+      version: '1.1.0-firebase',
     };
 
     this.downloadData(localData, 'local');
@@ -210,17 +214,17 @@ class BribeYourselfFitCloud {
   }
 
   /**
-   * Reset cloud data only
+   * Reset Firebase data only
    */
-  async resetCloudData() {
-    if (!this.cloudConfig.isConnected) {
-      this.showError('Not connected to Airtable storage');
+  async resetFirebaseData() {
+    if (!this.firebaseConfig.isConnected) {
+      this.showError('Not connected to Firebase');
       return;
     }
 
     if (
       !confirm(
-        'This will permanently delete all data from Airtable. This cannot be undone. Continue?'
+        'This will permanently delete all data from Firebase. This cannot be undone. Continue?'
       )
     ) {
       return;
@@ -228,57 +232,25 @@ class BribeYourselfFitCloud {
 
     if (
       !confirm(
-        'Are you absolutely sure? This will delete ALL your fitness data from Airtable!'
+        'Are you absolutely sure? This will delete ALL your fitness data from Firebase!'
       )
     ) {
       return;
     }
 
     try {
-      // For Airtable, we'll clear all records from each table
-      const tablesToClear = [
-        'Users',
-        'Daily%20Logs',
-        'Settings',
-        'Custom%20Rewards',
-        'Achievements',
-      ];
+      const userId = this.firebaseConfig.currentUser?.uid || 'user1';
+      const userRef = this.firebaseConfig.database.ref(`users/${userId}`);
 
-      for (const tableName of tablesToClear) {
-        // Get all records first
-        const listResponse = await fetch(
-          `https://api.airtable.com/v0/${this.cloudConfig.baseId}/${tableName}`,
-          {
-            headers: {
-              Authorization: `Bearer ${this.cloudConfig.token}`,
-            },
-          }
-        );
-
-        if (listResponse.ok) {
-          const data = await listResponse.json();
-
-          // Delete each record
-          for (const record of data.records) {
-            await fetch(
-              `https://api.airtable.com/v0/${this.cloudConfig.baseId}/${tableName}/${record.id}`,
-              {
-                method: 'DELETE',
-                headers: {
-                  Authorization: `Bearer ${this.cloudConfig.token}`,
-                },
-              }
-            );
-          }
-        }
-      }
+      // Delete all user data from Firebase
+      await userRef.remove();
 
       this.showSuccess(
-        'Airtable data deleted successfully. Local data preserved.'
+        'Firebase data deleted successfully. Local data preserved.'
       );
     } catch (error) {
-      console.error('Reset Airtable data error:', error);
-      this.showError('Failed to delete Airtable data');
+      console.error('Reset Firebase data error:', error);
+      this.showError('Failed to delete Firebase data');
     }
   }
 
@@ -303,64 +275,15 @@ class BribeYourselfFitCloud {
     }
 
     try {
-      // Delete Airtable data first (all 5 tables)
-      if (this.cloudConfig.isConnected && this.cloudConfig.baseId) {
-        console.log('🗑️ Clearing all Airtable tables...');
+      // Delete Firebase data first if connected
+      if (this.firebaseConfig.isConnected && this.firebaseConfig.databaseURL) {
+        console.log('🗑️ Clearing Firebase data...');
 
-        const tablesToClear = [
-          'Users',
-          'Daily%20Logs',
-          'Settings',
-          'Custom%20Rewards',
-          'Achievements',
-        ];
+        const userId = this.firebaseConfig.currentUser?.uid || 'user1';
+        const userRef = this.firebaseConfig.database.ref(`users/${userId}`);
 
-        for (const tableName of tablesToClear) {
-          console.log(`🗑️ Clearing ${tableName} table...`);
-
-          // Get all records first
-          const listResponse = await fetch(
-            `https://api.airtable.com/v0/${this.cloudConfig.baseId}/${tableName}`,
-            {
-              headers: {
-                Authorization: `Bearer ${this.cloudConfig.token}`,
-              },
-            }
-          );
-
-          if (listResponse.ok) {
-            const data = await listResponse.json();
-            console.log(`Found ${data.records.length} records in ${tableName}`);
-
-            // Delete each record
-            for (const record of data.records) {
-              const deleteResponse = await fetch(
-                `https://api.airtable.com/v0/${this.cloudConfig.baseId}/${tableName}/${record.id}`,
-                {
-                  method: 'DELETE',
-                  headers: {
-                    Authorization: `Bearer ${this.cloudConfig.token}`,
-                  },
-                }
-              );
-
-              if (deleteResponse.ok) {
-                console.log(`✅ Deleted record ${record.id} from ${tableName}`);
-              } else {
-                console.error(
-                  `❌ Failed to delete record ${record.id} from ${tableName}`
-                );
-              }
-            }
-
-            console.log(`✅ ${tableName} table cleared`);
-          } else {
-            console.error(
-              `❌ Failed to list records from ${tableName}:`,
-              listResponse.status
-            );
-          }
-        }
+        await userRef.remove();
+        console.log('✅ Firebase data cleared');
       }
 
       // Clear all localStorage
@@ -370,7 +293,7 @@ class BribeYourselfFitCloud {
         'byf_streaks',
         'byf_customRewards',
         'byf_achievements',
-        'byf_cloud_config',
+        'byf_firebase_config',
         'byf_auto_sync',
         'byf_sync_notifications',
         'byf_settings',
@@ -392,32 +315,46 @@ class BribeYourselfFitCloud {
   }
 
   /**
-   * Handle Airtable credentials update
+   * Handle Firebase credentials update
    */
-  async handleUpdateApiKey() {
-    const newToken = prompt('Enter your new Airtable Personal Access Token:');
-    if (!newToken) return;
+  async handleUpdateFirebaseCredentials() {
+    const newApiKey = prompt('Enter your new Firebase API Key:');
+    if (!newApiKey) return;
 
-    const newBaseId = prompt('Enter your Airtable Base ID:');
-    if (!newBaseId) return;
+    const newDatabaseUrl = prompt('Enter your Firebase Database URL:');
+    if (!newDatabaseUrl) return;
 
-    const oldToken = this.cloudConfig.token;
-    const oldBaseId = this.cloudConfig.baseId;
+    const oldConfig = { ...this.firebaseConfig };
 
-    this.cloudConfig.token = newToken.trim();
-    this.cloudConfig.baseId = newBaseId.trim();
+    this.firebaseConfig.apiKey = newApiKey.trim();
+    this.firebaseConfig.databaseURL = newDatabaseUrl.trim();
 
-    const success = await this.testCloudConnection();
+    // Extract project ID and set other config values
+    const projectIdMatch = newDatabaseUrl.match(/https:\/\/([^-]+)/);
+    if (projectIdMatch) {
+      const projectId = projectIdMatch[1];
+      this.firebaseConfig.projectId = projectId;
+      this.firebaseConfig.authDomain = `${projectId}.firebaseapp.com`;
+      this.firebaseConfig.storageBucket = `${projectId}.appspot.com`;
+    }
+
+    const success = await this.testFirebaseConnection();
 
     if (success) {
-      this.saveCloudConfig();
-      this.showSuccess('Airtable credentials updated successfully!');
+      this.saveFirebaseConfig();
+      this.showSuccess('Firebase credentials updated successfully!');
       this.updateSettingsDisplay();
     } else {
-      this.cloudConfig.token = oldToken;
-      this.cloudConfig.baseId = oldBaseId;
+      this.firebaseConfig = oldConfig;
       this.showError('Invalid credentials. Previous credentials restored.');
     }
+  }
+
+  /**
+   * Handle API key update (alias for Firebase credentials)
+   */
+  async handleUpdateApiKey() {
+    await this.handleUpdateFirebaseCredentials();
   }
 
   /**
@@ -425,15 +362,15 @@ class BribeYourselfFitCloud {
    */
   updateSettingsDisplay() {
     console.log('🔄 Updating settings display...');
-    console.log('Current connection status:', this.cloudConfig.isConnected);
-    console.log('Last sync:', this.cloudConfig.lastSync);
+    console.log('Current connection status:', this.firebaseConfig.isConnected);
+    console.log('Last sync:', this.firebaseConfig.lastSync);
 
     // Update connection info - CRITICAL FIX
     const connectionStatusEl = document.getElementById(
       'settingsConnectionStatus'
     );
     if (connectionStatusEl) {
-      const status = this.cloudConfig.isConnected
+      const status = this.firebaseConfig.isConnected
         ? '✅ Connected'
         : '❌ Disconnected';
       connectionStatusEl.textContent = status;
@@ -445,8 +382,8 @@ class BribeYourselfFitCloud {
     // Update last sync time - CRITICAL FIX
     const lastSyncEl = document.getElementById('lastSyncTime');
     if (lastSyncEl) {
-      if (this.cloudConfig.lastSync) {
-        const lastSync = new Date(this.cloudConfig.lastSync);
+      if (this.firebaseConfig.lastSync) {
+        const lastSync = new Date(this.firebaseConfig.lastSync);
         const syncTime = lastSync.toLocaleString();
         lastSyncEl.textContent = syncTime;
         console.log('✅ Last sync time updated to:', syncTime);
@@ -479,10 +416,10 @@ class BribeYourselfFitCloud {
 
     // Update API key display with masked value
     const settingsApiKeyEl = document.getElementById('settingsApiKey');
-    if (settingsApiKeyEl && this.cloudConfig.token) {
-      const maskedToken =
-        this.cloudConfig.token.substring(0, 8) + '••••••••••••';
-      settingsApiKeyEl.placeholder = maskedToken;
+    if (settingsApiKeyEl && this.firebaseConfig.apiKey) {
+      const maskedKey =
+        this.firebaseConfig.apiKey.substring(0, 8) + '••••••••••••';
+      settingsApiKeyEl.placeholder = maskedKey;
       console.log('✅ API key display updated');
     }
 
@@ -600,11 +537,32 @@ class BribeYourselfFitCloud {
         settingsWater.value = this.currentUser.dailyWater;
         console.log('✅ Water goal updated to:', this.currentUser.dailyWater);
       }
+
+      // Handle weight conversion for settings inputs
+      const weightUnit = this.settings?.weightUnit || 'lbs';
       if (settingsStartingWeight) {
-        settingsStartingWeight.value = this.currentUser.startingWeight;
+        const displayStartingWeight =
+          weightUnit === 'kg'
+            ? (this.currentUser.startingWeight * 0.453592).toFixed(1)
+            : this.currentUser.startingWeight;
+        settingsStartingWeight.value = displayStartingWeight;
+        console.log(
+          '✅ Settings starting weight updated to:',
+          displayStartingWeight,
+          weightUnit
+        );
       }
       if (settingsGoalWeight) {
-        settingsGoalWeight.value = this.currentUser.goalWeight;
+        const displayGoalWeight =
+          weightUnit === 'kg'
+            ? (this.currentUser.goalWeight * 0.453592).toFixed(1)
+            : this.currentUser.goalWeight;
+        settingsGoalWeight.value = displayGoalWeight;
+        console.log(
+          '✅ Settings goal weight updated to:',
+          displayGoalWeight,
+          weightUnit
+        );
       }
     }
 
@@ -692,6 +650,36 @@ class BribeYourselfFitCloud {
       setTimeout(() => {
         this.renderWeightChart();
       }, 100);
+    }
+
+    // Update settings input values if we're on the settings tab
+    if (this.currentTab === 'settings' && this.currentUser) {
+      const settingsStartingWeight = document.getElementById(
+        'settingsStartingWeight'
+      );
+      const settingsGoalWeight = document.getElementById('settingsGoalWeight');
+
+      if (settingsStartingWeight) {
+        const displayStartingWeight =
+          weightUnit === 'kg'
+            ? (this.currentUser.startingWeight * 0.453592).toFixed(1)
+            : this.currentUser.startingWeight;
+        settingsStartingWeight.value = displayStartingWeight;
+        console.log(
+          `✅ Settings starting weight updated to: ${displayStartingWeight} ${weightUnit}`
+        );
+      }
+
+      if (settingsGoalWeight) {
+        const displayGoalWeight =
+          weightUnit === 'kg'
+            ? (this.currentUser.goalWeight * 0.453592).toFixed(1)
+            : this.currentUser.goalWeight;
+        settingsGoalWeight.value = displayGoalWeight;
+        console.log(
+          `✅ Settings goal weight updated to: ${displayGoalWeight} ${weightUnit}`
+        );
+      }
     }
 
     console.log(`✅ Weight displays update complete for ${weightUnit}`);
@@ -985,26 +973,78 @@ class BribeYourselfFitCloud {
   }
 
   /**
-   * Save cloud configuration to localStorage
+   * Save Firebase configuration to localStorage
    */
-  saveCloudConfig() {
+  saveFirebaseConfig() {
     try {
       localStorage.setItem(
-        'byf_cloud_config',
-        JSON.stringify(this.cloudConfig)
+        'byf_firebase_config',
+        JSON.stringify(this.firebaseConfig)
       );
     } catch (error) {
-      console.error('Error saving cloud config:', error);
+      console.error('Error saving Firebase config:', error);
     }
   }
 
   /**
-   * Initialize cloud sync after app load
+   * Load Firebase SDK dynamically
    */
-  async initializeCloudSync() {
-    if (this.cloudConfig.token && this.cloudConfig.baseId) {
-      await this.testCloudConnection();
-      if (this.cloudConfig.isConnected) {
+  async loadFirebaseSDK() {
+    return new Promise((resolve, reject) => {
+      if (window.firebase && window.firebase.database) {
+        console.log('🔄 Firebase SDK already loaded');
+        resolve(window.firebase);
+        return;
+      }
+
+      console.log('📥 Loading Firebase SDK...');
+
+      // Load Firebase v8 SDK (more reliable for this use case)
+      const script = document.createElement('script');
+      script.src = 'https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js';
+      script.onload = () => {
+        const dbScript = document.createElement('script');
+        dbScript.src =
+          'https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js';
+        dbScript.onload = () => {
+          const authScript = document.createElement('script');
+          authScript.src =
+            'https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js';
+          authScript.onload = () => {
+            console.log('✅ Firebase SDK v8 loaded successfully');
+            console.log(
+              'Firebase available functions:',
+              Object.keys(window.firebase)
+            );
+            resolve(window.firebase);
+          };
+          authScript.onerror = () =>
+            reject(new Error('Failed to load Firebase Auth'));
+          document.head.appendChild(authScript);
+        };
+        dbScript.onerror = () =>
+          reject(new Error('Failed to load Firebase Database'));
+        document.head.appendChild(dbScript);
+      };
+      script.onerror = () => reject(new Error('Failed to load Firebase App'));
+      document.head.appendChild(script);
+    });
+  }
+  /**
+   * Extract project ID from database URL
+   */
+  extractProjectId(databaseUrl) {
+    const match = databaseUrl.match(/https:\/\/([^-]+)/);
+    return match ? match[1] : 'default-project';
+  }
+
+  /**
+   * Initialize Firebase sync after app load
+   */
+  async initializeFirebaseSync() {
+    if (this.firebaseConfig.apiKey && this.firebaseConfig.databaseURL) {
+      await this.testFirebaseConnection();
+      if (this.firebaseConfig.isConnected) {
         await this.performInitialSync();
         this.startAutoSync();
       }
@@ -1013,209 +1053,273 @@ class BribeYourselfFitCloud {
   }
 
   /**
-   * Test connection to Airtable
+   * Test connection to Firebase
    */
-  async testCloudConnection() {
-    if (!this.cloudConfig.token || !this.cloudConfig.baseId) {
-      this.updateConnectionStatus('error', 'Token and Base ID required');
+  async testFirebaseConnection() {
+    if (!this.firebaseConfig.apiKey || !this.firebaseConfig.databaseURL) {
+      this.updateConnectionStatus('error', 'Firebase credentials required');
       return false;
     }
 
     try {
-      this.updateConnectionStatus('testing', 'Testing Airtable connection...');
+      this.updateConnectionStatus('testing', 'Testing Firebase connection...');
 
-      // Test connection by trying to read the base schema
-      const response = await fetch(
-        `https://api.airtable.com/v0/meta/bases/${this.cloudConfig.baseId}/tables`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${this.cloudConfig.token}`,
-            'Content-Type': 'application/json',
-          },
-        }
+      // Load Firebase SDK if not already loaded
+      await this.loadFirebaseSDK();
+
+      // Debugging
+      console.log('🔍 Firebase debugging:');
+      console.log('window.firebase exists:', !!window.firebase);
+      console.log(
+        'window.firebase.database exists:',
+        !!window.firebase?.database
       );
 
-      if (response.ok) {
-        const data = await response.json();
+      // Initialize Firebase app if not already initialized
+      console.log('🔧 Setting up Firebase...');
 
-        // Verify we have the expected tables
-        const tableNames = data.tables.map((table) => table.name);
-        const requiredTables = [
-          'Users',
-          'Daily Logs',
-          'Settings',
-          'Custom Rewards',
-          'Achievements',
-        ];
-        const missingTables = requiredTables.filter(
-          (table) => !tableNames.includes(table)
+      // Extract project ID from database URL for other config values
+      const projectIdMatch =
+        this.firebaseConfig.databaseURL.match(/https:\/\/([^-]+)/);
+      if (projectIdMatch) {
+        const projectId = projectIdMatch[1];
+        this.firebaseConfig.projectId = projectId;
+        this.firebaseConfig.authDomain = `${projectId}.firebaseapp.com`;
+        this.firebaseConfig.storageBucket = `${projectId}.appspot.com`;
+      }
+
+      const firebaseAppConfig = {
+        apiKey: this.firebaseConfig.apiKey,
+        authDomain: this.firebaseConfig.authDomain,
+        databaseURL: this.firebaseConfig.databaseURL,
+        projectId: this.firebaseConfig.projectId,
+        storageBucket: this.firebaseConfig.storageBucket,
+      };
+
+      console.log('🔧 Firebase config prepared:', {
+        ...firebaseAppConfig,
+        apiKey: firebaseAppConfig.apiKey?.substring(0, 10) + '...',
+      });
+
+      // Reset any existing Firebase app to start fresh
+      this.firebaseConfig.app = null;
+      this.firebaseConfig.database = null;
+
+      // Delete existing app if it exists
+      try {
+        const existingApp = firebase.app();
+        await existingApp.delete();
+        console.log('🗑️ Deleted existing Firebase app');
+      } catch (error) {
+        console.log('ℹ️ No existing Firebase app to delete');
+      }
+
+      // Initialize new Firebase app
+      try {
+        console.log('🆕 Creating new Firebase app...');
+        this.firebaseConfig.app = firebase.initializeApp(firebaseAppConfig);
+
+        // Wait a moment for initialization
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        console.log('🔗 Getting database reference...');
+        this.firebaseConfig.database = firebase.database();
+
+        // Wait another moment for database to be ready
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        console.log('✅ Firebase app and database initialized');
+        console.log(
+          '📊 Database object type:',
+          typeof this.firebaseConfig.database
         );
+        console.log(
+          '🔗 Database ref function:',
+          typeof this.firebaseConfig.database?.ref
+        );
+      } catch (initError) {
+        console.error('❌ Firebase initialization error:', initError);
+        throw new Error(`Firebase initialization failed: ${initError.message}`);
+      }
 
-        if (missingTables.length > 0) {
-          this.updateConnectionStatus(
-            'error',
-            `Missing required tables: ${missingTables.join(', ')}`
-          );
-          return false;
-        }
+      // Final verification with more detailed checking
+      if (!this.firebaseConfig.database) {
+        throw new Error('Database object is null after initialization');
+      }
 
-        // Store table IDs for future use
-        this.cloudConfig.tableIds = {};
-        data.tables.forEach((table) => {
-          switch (table.name) {
-            case 'Users':
-              this.cloudConfig.tableIds.users = table.id;
-              break;
-            case 'Daily Logs':
-              this.cloudConfig.tableIds.dailyLogs = table.id;
-              break;
-            case 'Settings':
-              this.cloudConfig.tableIds.settings = table.id;
-              break;
-            case 'Custom Rewards':
-              this.cloudConfig.tableIds.customRewards = table.id;
-              break;
-            case 'Achievements':
-              this.cloudConfig.tableIds.achievements = table.id;
-              break;
-          }
-        });
-
-        this.cloudConfig.isConnected = true;
-        this.cloudConfig.retryCount = 0;
-        this.updateConnectionStatus('connected', 'Connected to Airtable base');
-        return true;
-      } else {
+      if (typeof this.firebaseConfig.database.ref !== 'function') {
+        console.error('❌ Database object:', this.firebaseConfig.database);
+        console.error(
+          '❌ Available methods:',
+          Object.getOwnPropertyNames(this.firebaseConfig.database)
+        );
         throw new Error(
-          `Airtable API Error: ${response.status} ${response.statusText}`
+          'Database ref function is not available. Database object may not be properly initialized.'
         );
       }
+
+      console.log('✅ Database verification passed');
+
+      // Verify database ref function exists
+      if (typeof this.firebaseConfig.database.ref !== 'function') {
+        throw new Error(
+          'Database ref function is not available. Database object may not be properly initialized.'
+        );
+      }
+
+      const testRef = this.firebaseConfig.database.ref('test/connection');
+
+      // Write test data
+      await testRef.set({
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        test: true,
+      });
+
+      // Read test data back
+      const snapshot = await testRef.once('value');
+      const testData = snapshot.val();
+
+      if (testData && testData.test === true) {
+        console.log('✅ Firebase database test successful:', testData);
+
+        // Clean up test data
+        await testRef.remove();
+
+        this.firebaseConfig.isConnected = true;
+        this.firebaseConfig.retryCount = 0;
+        this.updateConnectionStatus('connected', 'Connected to Firebase');
+        return true;
+      } else {
+        throw new Error('Database test failed - no data returned');
+      }
     } catch (error) {
-      console.error('Airtable connection test failed:', error);
-      this.cloudConfig.isConnected = false;
-      this.updateConnectionStatus(
-        'error',
-        `Connection failed: ${error.message}`
-      );
+      console.error('❌ Firebase connection test failed:', error);
+      this.firebaseConfig.isConnected = false;
+
+      let errorMessage = 'Connection failed: ';
+      if (error.code === 'PERMISSION_DENIED') {
+        errorMessage +=
+          'Database rules deny access. Check your Firebase security rules.';
+      } else if (error.message.includes('network')) {
+        errorMessage += 'Network error. Check your internet connection.';
+      } else {
+        errorMessage += error.message;
+      }
+
+      this.updateConnectionStatus('error', errorMessage);
       return false;
     }
   }
 
   /**
-   * Validate Airtable token format before testing connection
+   * Validate Firebase API key format
    */
-  validateApiKeyFormat(token) {
-    // Airtable Personal Access Token format validation
-    if (!token || typeof token !== 'string') {
+  validateFirebaseApiKey(apiKey) {
+    if (!apiKey || typeof apiKey !== 'string') {
       return {
         valid: false,
-        message: 'Token is required',
+        message: 'API key is required',
       };
     }
 
-    const trimmedToken = token.trim();
+    const trimmedKey = apiKey.trim();
 
-    // Airtable Personal Access Tokens start with 'pat' and are typically 17+ characters
-    if (!trimmedToken.startsWith('pat') || trimmedToken.length < 17) {
+    // Firebase API keys are typically 39 characters and contain letters, numbers, hyphens, and underscores
+    if (trimmedKey.length < 35 || trimmedKey.length > 45) {
       return {
         valid: false,
-        message:
-          'Airtable Personal Access Token should start with "pat" and be at least 17 characters long',
+        message: 'Firebase API key should be 35-45 characters long',
       };
     }
 
-    // Check for valid characters (alphanumeric and specific symbols)
-    const validTokenPattern = /^pat[A-Za-z0-9._-]+$/;
-    if (!validTokenPattern.test(trimmedToken)) {
+    // Check for valid characters (alphanumeric, hyphens, underscores)
+    const validKeyPattern = /^[A-Za-z0-9_-]+$/;
+    if (!validKeyPattern.test(trimmedKey)) {
       return {
         valid: false,
         message:
-          'Token contains invalid characters. Should only contain letters, numbers, dots, hyphens, and underscores',
+          'API key contains invalid characters. Should only contain letters, numbers, hyphens, and underscores',
       };
     }
 
     return {
       valid: true,
-      message: 'Token format looks correct',
+      message: 'API key format looks correct',
     };
   }
 
   /**
-   * Validate Airtable Base ID format
+   * Validate Firebase database URL format
    */
-  validateBaseIdFormat(baseId) {
-    // Airtable Base ID format validation
-    if (!baseId || typeof baseId !== 'string') {
+  validateFirebaseDatabaseUrl(databaseUrl) {
+    if (!databaseUrl || typeof databaseUrl !== 'string') {
       return {
         valid: false,
-        message: 'Base ID is required',
+        message: 'Database URL is required',
       };
     }
 
-    const trimmedBaseId = baseId.trim();
+    const trimmedUrl = databaseUrl.trim();
 
-    // Airtable Base IDs start with 'app' and are typically 17 characters total
-    if (!trimmedBaseId.startsWith('app') || trimmedBaseId.length !== 17) {
+    // Firebase database URLs follow pattern: https://PROJECT-ID-default-rtdb.firebaseio.com/
+    const validUrlPattern =
+      /^https:\/\/[a-zA-Z0-9-]+-default-rtdb\.(firebaseio\.com|asia-southeast1\.firebasedatabase\.app|europe-west1\.firebasedatabase\.app)\/$/;
+
+    if (!validUrlPattern.test(trimmedUrl)) {
       return {
         valid: false,
         message:
-          'Airtable Base ID should start with "app" and be exactly 17 characters long',
-      };
-    }
-
-    // Check for valid characters (alphanumeric)
-    const validBaseIdPattern = /^app[A-Za-z0-9]+$/;
-    if (!validBaseIdPattern.test(trimmedBaseId)) {
-      return {
-        valid: false,
-        message:
-          'Base ID contains invalid characters. Should only contain letters and numbers after "app"',
+          'Invalid Firebase database URL format. Should be: https://YOUR-PROJECT-default-rtdb.firebaseio.com/',
       };
     }
 
     return {
       valid: true,
-      message: 'Base ID format looks correct',
+      message: 'Database URL format looks correct',
     };
   }
 
   /**
-   * Delete test data (cleanup) - Not needed for Airtable
+   * Test cleanup for Firebase (not needed like JSONBin)
    */
-  async deleteTestBin(binId) {
-    // Airtable doesn't need test bin cleanup like JSONBin
-    // This function is kept for compatibility but does nothing
-    console.log('Airtable test cleanup - no action needed');
+  async deleteTestData() {
+    // Firebase doesn't need test data cleanup like JSONBin
+    // This function is kept for compatibility
+    console.log('Firebase test cleanup - no action needed');
+    return true;
   }
 
   /**
    * Perform initial sync when app loads
    */
   async performInitialSync() {
-    if (!this.cloudConfig.isConnected || !this.cloudConfig.baseId) return;
+    if (!this.firebaseConfig.isConnected || !this.firebaseConfig.databaseURL)
+      return;
 
     try {
-      // Try to load data from cloud
-      const cloudData = await this.loadFromCloud();
+      // Try to load data from Firebase
+      const firebaseData = await this.loadFromFirebase();
 
-      if (cloudData) {
-        // Check if cloud data is newer than local data
-        const cloudTimestamp = new Date(cloudData.lastSync || 0);
-        const localTimestamp = new Date(this.cloudConfig.lastSync || 0);
+      if (firebaseData) {
+        // Check if Firebase data is newer than local data
+        const firebaseTimestamp = new Date(firebaseData.lastSync || 0);
+        const localTimestamp = new Date(this.firebaseConfig.lastSync || 0);
 
-        if (cloudTimestamp > localTimestamp) {
-          // Cloud data is newer, use it
-          this.mergeCloudData(cloudData);
-          this.showSuccess('💾 Synced data from cloud storage');
+        if (firebaseTimestamp > localTimestamp) {
+          // Firebase data is newer, use it
+          this.mergeFirebaseData(firebaseData);
+          this.showSuccess('💾 Synced data from Firebase');
         } else {
-          // Local data is newer or same, push to cloud
-          await this.saveToCloud();
+          // Local data is newer or same, push to Firebase
+          await this.saveToFirebase();
         }
       } else {
-        // No cloud data exists, push local data
-        await this.saveToCloud();
+        // No Firebase data exists, push local data
+        await this.saveToFirebase();
       }
+
+      // Setup real-time listeners after initial sync
+      this.setupRealtimeListeners();
     } catch (error) {
       console.error('Initial sync failed:', error);
       this.showError('Initial sync failed, using local data');
@@ -1223,49 +1327,218 @@ class BribeYourselfFitCloud {
   }
 
   /**
-   * Load data from Airtable (simplified for now)
+   * Merge Firebase data with local data
    */
-  async loadFromCloud() {
-    if (!this.cloudConfig.baseId || !this.cloudConfig.token) return null;
+  mergeFirebaseData(firebaseData) {
+    console.log('🔄 Merging Firebase data with local data...');
+
+    if (firebaseData.user) this.currentUser = firebaseData.user;
+    if (firebaseData.dailyLogs) this.dailyLogs = firebaseData.dailyLogs;
+    if (firebaseData.streaks) this.streaks = firebaseData.streaks;
+    if (firebaseData.customRewards)
+      this.customRewards = firebaseData.customRewards;
+    if (firebaseData.achievements)
+      this.achievements = firebaseData.achievements;
+    if (firebaseData.settings) this.settings = firebaseData.settings;
+
+    // Save merged data locally
+    this.saveLocalData();
+    this.updateDashboard();
+
+    // Apply any settings that affect UI
+    if (firebaseData.settings && firebaseData.settings.weightUnit) {
+      setTimeout(() => {
+        this.updateWeightDisplays();
+      }, 100);
+    }
+
+    console.log('✅ Firebase data merge complete');
+  }
+
+  /**
+   * Load data from Firebase Realtime Database
+   */
+  async loadFromFirebase() {
+    if (!this.firebaseConfig.databaseURL || !this.firebaseConfig.database)
+      return null;
 
     try {
-      // For now, we'll return null to focus on saving functionality
-      // This would need to be implemented to read from all Airtable tables
-      // and reconstruct the data structure
-      console.log('Airtable data loading - simplified for initial version');
-      return null;
+      console.log('🔄 Loading data from Firebase...');
+
+      // Get current user ID (or use 'user1' as default like Airtable version)
+      const userId = this.firebaseConfig.currentUser?.uid || 'user1';
+      const userRef = this.firebaseConfig.database.ref(`users/${userId}`);
+
+      // Load user data from Firebase
+      const snapshot = await userRef.once('value');
+      const userData = snapshot.val();
+
+      if (!userData) {
+        console.log('📝 No existing data found in Firebase');
+        return null;
+      }
+
+      console.log('✅ Successfully loaded data from Firebase');
+
+      // Transform Firebase data back to app format
+      const cloudData = {
+        user: userData.profile,
+        dailyLogs: userData.dailyLogs || {},
+        streaks: userData.streaks || this.initializeStreaks(),
+        customRewards: userData.customRewards || [],
+        achievements: userData.achievements || [],
+        settings: userData.settings || this.getDefaultSettings(),
+        lastSync: userData.lastSync,
+        version: userData.version || '1.1-firebase',
+      };
+
+      return cloudData;
     } catch (error) {
-      console.error('Error loading from Airtable:', error);
+      console.error('❌ Error loading from Firebase:', error);
       throw error;
     }
   }
 
   /**
-   * Save data to Airtable
+   * Setup real-time listeners for Firebase data changes
    */
-  async saveToCloud() {
-    console.log('saveToCloud called');
+  setupRealtimeListeners() {
+    if (!this.firebaseConfig.database || !this.firebaseConfig.isConnected) {
+      console.log('❌ Cannot setup listeners: database not connected');
+      return;
+    }
+
+    const userId = this.firebaseConfig.currentUser?.uid || 'user1';
+    const userRef = this.firebaseConfig.database.ref(`users/${userId}`);
+
+    console.log('🔄 Setting up Firebase real-time listeners...');
+
+    // Listen for any changes to user data
+    const dataListener = userRef.on('value', (snapshot) => {
+      const userData = snapshot.val();
+      if (userData && userData.lastSync !== this.firebaseConfig.lastSync) {
+        console.log('🔔 Real-time update received from Firebase');
+
+        // Only update if the change came from another device
+        if (userData.lastSync > this.firebaseConfig.lastSync) {
+          this.handleRealtimeUpdate(userData);
+        }
+      }
+    });
+
+    // Store listener reference for cleanup
+    this.firebaseConfig.realTimeListeners.userData = {
+      ref: userRef,
+      listener: dataListener,
+    };
+
+    // Listen for connection status
+    const connectedRef = this.firebaseConfig.database.ref('.info/connected');
+    const connectionListener = connectedRef.on('value', (snapshot) => {
+      const connected = snapshot.val();
+      if (connected) {
+        console.log('🔗 Firebase connection restored');
+        this.firebaseConfig.isConnected = true;
+        this.updateSyncStatus('connected', 'Connected to Firebase');
+
+        // Process any queued offline changes
+        if (this.syncQueue.length > 0) {
+          this.saveToFirebase();
+        }
+      } else {
+        console.log('📱 Firebase connection lost - working offline');
+        this.firebaseConfig.isConnected = false;
+        this.updateSyncStatus(
+          'offline',
+          'Offline - will sync when reconnected'
+        );
+      }
+    });
+
+    this.firebaseConfig.realTimeListeners.connection = {
+      ref: connectedRef,
+      listener: connectionListener,
+    };
+
+    console.log('✅ Real-time listeners setup complete');
+  }
+
+  /**
+   * Handle real-time updates from Firebase
+   */
+  handleRealtimeUpdate(userData) {
+    console.log('🔄 Processing real-time update...');
+
+    try {
+      // Update local data with Firebase data
+      if (userData.profile) this.currentUser = userData.profile;
+      if (userData.dailyLogs) this.dailyLogs = userData.dailyLogs;
+      if (userData.streaks) this.streaks = userData.streaks;
+      if (userData.customRewards) this.customRewards = userData.customRewards;
+      if (userData.achievements) this.achievements = userData.achievements;
+      if (userData.settings) this.settings = userData.settings;
+
+      // Update sync timestamp
+      this.firebaseConfig.lastSync = userData.lastSync;
+
+      // Save updated data locally
+      this.saveLocalData();
+      this.saveFirebaseConfig();
+
+      // Refresh UI
+      this.updateDashboard();
+      if (this.currentTab === 'charts') {
+        this.loadChartsTab();
+      } else if (this.currentTab === 'rewards') {
+        this.loadRewardsTab();
+      } else if (this.currentTab === 'settings') {
+        this.updateSettingsDisplay();
+      }
+
+      // Apply settings changes (like weight unit conversion)
+      if (userData.settings && userData.settings.weightUnit) {
+        this.updateWeightDisplays();
+      }
+
+      if (this.syncNotifications) {
+        this.showSuccess('🔄 Data updated from another device', 2000);
+      }
+
+      console.log('✅ Real-time update processed successfully');
+    } catch (error) {
+      console.error('❌ Error processing real-time update:', error);
+    }
+  }
+
+  /**
+   * Save data to Firebase Realtime Database
+   */
+  async saveToFirebase() {
+    console.log('saveToFirebase called');
 
     // Reset sync flag first to prevent stuck states
-    this.cloudConfig.syncInProgress = false;
-    console.log('isConnected:', this.cloudConfig.isConnected);
-    console.log('syncInProgress:', this.cloudConfig.syncInProgress);
-    console.log('token exists:', !!this.cloudConfig.token);
-    console.log('baseId exists:', !!this.cloudConfig.baseId);
+    this.firebaseConfig.syncInProgress = false;
+    console.log('isConnected:', this.firebaseConfig.isConnected);
+    console.log('syncInProgress:', this.firebaseConfig.syncInProgress);
+    console.log('apiKey exists:', !!this.firebaseConfig.apiKey);
+    console.log('databaseURL exists:', !!this.firebaseConfig.databaseURL);
 
-    if (!this.cloudConfig.isConnected || this.cloudConfig.syncInProgress) {
+    if (
+      !this.firebaseConfig.isConnected ||
+      this.firebaseConfig.syncInProgress
+    ) {
       console.log('❌ Cannot sync: not connected or sync in progress');
       return false;
     }
 
     // Force connection check if we have credentials but isConnected is false
     if (
-      !this.cloudConfig.isConnected &&
-      this.cloudConfig.token &&
-      this.cloudConfig.baseId
+      !this.firebaseConfig.isConnected &&
+      this.firebaseConfig.apiKey &&
+      this.firebaseConfig.databaseURL
     ) {
       console.log('Have credentials but not connected, testing connection...');
-      const connected = await this.testCloudConnection();
+      const connected = await this.testFirebaseConnection();
       if (!connected) {
         console.log('❌ Connection test failed');
         return false;
@@ -1273,30 +1546,76 @@ class BribeYourselfFitCloud {
     }
 
     try {
-      this.cloudConfig.syncInProgress = true;
+      this.firebaseConfig.syncInProgress = true;
       this.updateSyncStatus('syncing');
 
-      // Save to Users table
-      await this.saveUserToAirtable();
+      // Get current user ID (or use 'user1' as default like Airtable version)
+      const userId = this.firebaseConfig.currentUser?.uid || 'user1';
+      const userRef = this.firebaseConfig.database.ref(`users/${userId}`);
 
-      // Save daily logs to Daily Logs table
-      await this.saveDailyLogsToAirtable();
+      // Helper function to remove undefined values recursively
+      const sanitizeData = (obj) => {
+        if (obj === null || obj === undefined) {
+          return null;
+        }
 
-      // Save streaks, rewards, and achievements
-      await this.saveAppDataToAirtable();
+        if (Array.isArray(obj)) {
+          return obj
+            .map((item) => sanitizeData(item))
+            .filter((item) => item !== undefined);
+        }
 
-      this.cloudConfig.lastSync = new Date().toISOString();
-      this.cloudConfig.retryCount = 0;
-      this.saveCloudConfig();
+        if (typeof obj === 'object') {
+          const sanitized = {};
+          for (const [key, value] of Object.entries(obj)) {
+            if (value !== undefined) {
+              sanitized[key] = sanitizeData(value);
+            }
+          }
+          return sanitized;
+        }
+
+        return obj;
+      };
+
+      // Prepare complete user data structure with sanitization
+      const userData = sanitizeData({
+        profile: {
+          startingWeight: this.currentUser.startingWeight,
+          currentWeight: this.currentUser.currentWeight,
+          goalWeight: this.currentUser.goalWeight,
+          dailySteps: this.currentUser.dailySteps,
+          dailyExercise: this.currentUser.dailyExercise,
+          dailyWater: this.currentUser.dailyWater,
+          setupDate: this.currentUser.setupDate,
+          lastWeightUpdate:
+            this.currentUser.lastWeightUpdate || new Date().toISOString(),
+        },
+        dailyLogs: this.dailyLogs || {},
+        streaks: this.streaks || this.initializeStreaks(),
+        customRewards: this.customRewards || [],
+        achievements: this.achievements || [],
+        settings: this.settings || this.getDefaultSettings(),
+        lastSync: new Date().toISOString(),
+        version: '1.1-firebase',
+      });
+
+      console.log('🧹 Data sanitized for Firebase:', userData);
+      // Save all data to Firebase in one transaction
+      await userRef.set(userData);
+
+      this.firebaseConfig.lastSync = new Date().toISOString();
+      this.firebaseConfig.retryCount = 0;
+      this.saveFirebaseConfig();
 
       this.updateSyncStatus('synced');
       this.processSyncQueue();
 
       if (this.syncNotifications) {
-        this.showSuccess('☁️ Data synced to Airtable', 2000);
+        this.showSuccess('☁️ Data synced to Firebase', 2000);
       }
 
-      console.log('✅ Sync completed successfully');
+      console.log('✅ Firebase sync completed successfully');
 
       // Mark all pending items as synced
       this.markSyncQueueItemsCompleted('dailyLog');
@@ -1314,16 +1633,16 @@ class BribeYourselfFitCloud {
 
       return true;
     } catch (error) {
-      console.error('❌ Error saving to Airtable:', error);
+      console.error('❌ Error saving to Firebase:', error);
       console.error('Error details:', {
         message: error.message,
         stack: error.stack,
-        response: error.response,
+        code: error.code,
       });
       this.handleSyncError(error);
       return false;
     } finally {
-      this.cloudConfig.syncInProgress = false;
+      this.firebaseConfig.syncInProgress = false;
       console.log('✅ syncInProgress reset to false');
     }
   }
@@ -1337,10 +1656,10 @@ class BribeYourselfFitCloud {
     try {
       // First, check if a user record already exists
       const existingResponse = await fetch(
-        `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Users?filterByFormula={User ID}='user1'`,
+        `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Users?filterByFormula={User ID}='user1'`,
         {
           headers: {
-            Authorization: `Bearer ${this.cloudConfig.token}`,
+            Authorization: `Bearer ${this.firebaseConfig.token}`,
           },
         }
       );
@@ -1385,11 +1704,11 @@ class BribeYourselfFitCloud {
     };
 
     const response = await fetch(
-      `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Users`,
+      `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Users`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.cloudConfig.token}`,
+          Authorization: `Bearer ${this.firebaseConfig.token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(userData),
@@ -1427,11 +1746,11 @@ class BribeYourselfFitCloud {
     };
 
     const response = await fetch(
-      `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Users/${recordId}`,
+      `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Users/${recordId}`,
       {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${this.cloudConfig.token}`,
+          Authorization: `Bearer ${this.firebaseConfig.token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(userData),
@@ -1463,10 +1782,10 @@ class BribeYourselfFitCloud {
       // First, check if a record already exists for this date
       try {
         const existingResponse = await fetch(
-          `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Daily%20Logs?filterByFormula=IS_SAME(Date,'${searchDate}','day')`,
+          `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Daily%20Logs?filterByFormula=IS_SAME(Date,'${searchDate}','day')`,
           {
             headers: {
-              Authorization: `Bearer ${this.cloudConfig.token}`,
+              Authorization: `Bearer ${this.firebaseConfig.token}`,
             },
           }
         );
@@ -1517,11 +1836,11 @@ class BribeYourselfFitCloud {
     };
 
     const response = await fetch(
-      `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Daily%20Logs`,
+      `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Daily%20Logs`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.cloudConfig.token}`,
+          Authorization: `Bearer ${this.firebaseConfig.token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(logData),
@@ -1559,11 +1878,11 @@ class BribeYourselfFitCloud {
     };
 
     const response = await fetch(
-      `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Daily%20Logs/${recordId}`,
+      `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Daily%20Logs/${recordId}`,
       {
         method: 'PATCH',
         headers: {
-          Authorization: `Bearer ${this.cloudConfig.token}`,
+          Authorization: `Bearer ${this.firebaseConfig.token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(logData),
@@ -1607,10 +1926,10 @@ class BribeYourselfFitCloud {
     try {
       // Check if settings record exists
       const existingResponse = await fetch(
-        `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Settings?filterByFormula={Setting Name}='user1_settings'`,
+        `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Settings?filterByFormula={Setting Name}='user1_settings'`,
         {
           headers: {
-            Authorization: `Bearer ${this.cloudConfig.token}`,
+            Authorization: `Bearer ${this.firebaseConfig.token}`,
           },
         }
       );
@@ -1645,11 +1964,11 @@ class BribeYourselfFitCloud {
             // Update existing record
             const recordId = existingRecord.id;
             const response = await fetch(
-              `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Settings/${recordId}`,
+              `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Settings/${recordId}`,
               {
                 method: 'PATCH',
                 headers: {
-                  Authorization: `Bearer ${this.cloudConfig.token}`,
+                  Authorization: `Bearer ${this.firebaseConfig.token}`,
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ fields: currentSettings }),
@@ -1666,11 +1985,11 @@ class BribeYourselfFitCloud {
           // Create new record
           console.log('➕ Creating new settings record...');
           const response = await fetch(
-            `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Settings`,
+            `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Settings`,
             {
               method: 'POST',
               headers: {
-                Authorization: `Bearer ${this.cloudConfig.token}`,
+                Authorization: `Bearer ${this.firebaseConfig.token}`,
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({ fields: currentSettings }),
@@ -1732,10 +2051,10 @@ class BribeYourselfFitCloud {
       // First, get existing rewards to avoid duplicates
       console.log('🔍 Checking existing rewards in Airtable...');
       const existingResponse = await fetch(
-        `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Custom%20Rewards`,
+        `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Custom%20Rewards`,
         {
           headers: {
-            Authorization: `Bearer ${this.cloudConfig.token}`,
+            Authorization: `Bearer ${this.firebaseConfig.token}`,
           },
         }
       );
@@ -1804,11 +2123,11 @@ class BribeYourselfFitCloud {
         console.log('📤 Sending reward data to Airtable:', rewardData);
 
         const response = await fetch(
-          `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Custom%20Rewards`,
+          `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Custom%20Rewards`,
           {
             method: 'POST',
             headers: {
-              Authorization: `Bearer ${this.cloudConfig.token}`,
+              Authorization: `Bearer ${this.firebaseConfig.token}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(rewardData),
@@ -1856,10 +2175,10 @@ class BribeYourselfFitCloud {
     try {
       // First, get existing achievements to avoid duplicates
       const existingResponse = await fetch(
-        `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Achievements`,
+        `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Achievements`,
         {
           headers: {
-            Authorization: `Bearer ${this.cloudConfig.token}`,
+            Authorization: `Bearer ${this.firebaseConfig.token}`,
           },
         }
       );
@@ -1925,11 +2244,11 @@ class BribeYourselfFitCloud {
         );
 
         const response = await fetch(
-          `https://api.airtable.com/v0/${this.cloudConfig.baseId}/Achievements`,
+          `https://api.airtable.com/v0/${this.firebaseConfig.baseId}/Achievements`,
           {
             method: 'POST',
             headers: {
-              Authorization: `Bearer ${this.cloudConfig.token}`,
+              Authorization: `Bearer ${this.firebaseConfig.token}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(achievementData),
@@ -1963,25 +2282,25 @@ class BribeYourselfFitCloud {
    * Handle sync errors with progressive fallback and recovery
    */
   handleSyncError(error) {
-    this.cloudConfig.retryCount++;
+    this.firebaseConfig.retryCount++;
 
-    if (this.cloudConfig.retryCount <= this.cloudConfig.maxRetries) {
+    if (this.firebaseConfig.retryCount <= this.firebaseConfig.maxRetries) {
       // Schedule retry with exponential backoff
       const retryDelay = Math.min(
-        1000 * Math.pow(2, this.cloudConfig.retryCount),
+        1000 * Math.pow(2, this.firebaseConfig.retryCount),
         30000
       );
 
       this.updateSyncStatus(
         'error',
         `Retrying in ${Math.round(retryDelay / 1000)}s... (${
-          this.cloudConfig.retryCount
-        }/${this.cloudConfig.maxRetries})`
+          this.firebaseConfig.retryCount
+        }/${this.firebaseConfig.maxRetries})`
       );
 
       setTimeout(() => {
         if (this.autoSyncEnabled) {
-          this.saveToCloud();
+          this.saveToFirebase();
         }
       }, retryDelay);
     } else {
@@ -1992,7 +2311,7 @@ class BribeYourselfFitCloud {
       );
 
       // Reset retry count for next connection attempt
-      this.cloudConfig.retryCount = 0;
+      this.firebaseConfig.retryCount = 0;
 
       if (this.syncNotifications) {
         this.showError(
@@ -2006,13 +2325,13 @@ class BribeYourselfFitCloud {
    * Attempt to recover sync connection
    */
   async recoverSyncConnection() {
-    if (this.cloudConfig.retryCount >= this.cloudConfig.maxRetries) {
+    if (this.firebaseConfig.retryCount >= this.firebaseConfig.maxRetries) {
       console.log('Attempting to recover sync connection...');
 
       const connected = await this.testCloudConnection();
       if (connected && this.syncQueue.length > 0) {
         this.showSuccess('🔄 Connection restored! Syncing pending changes...');
-        await this.saveToCloud();
+        await this.saveToFirebase();
       }
     }
   }
@@ -2022,8 +2341,8 @@ class BribeYourselfFitCloud {
    */
   async checkConnectionHealth() {
     if (
-      !this.cloudConfig.token ||
-      !this.cloudConfig.baseId ||
+      !this.firebaseConfig.apiKey ||
+      !this.firebaseConfig.databaseURL ||
       !navigator.onLine
     )
       return false;
@@ -2031,26 +2350,26 @@ class BribeYourselfFitCloud {
     try {
       // Simple connectivity test using Airtable API
       const response = await fetch(
-        `https://api.airtable.com/v0/meta/bases/${this.cloudConfig.baseId}/tables`,
+        `https://api.airtable.com/v0/meta/bases/${this.firebaseConfig.baseId}/tables`,
         {
           method: 'HEAD',
-          headers: { Authorization: `Bearer ${this.cloudConfig.token}` },
+          headers: { Authorization: `Bearer ${this.firebaseConfig.token}` },
         }
       );
 
       const isHealthy = response.status !== 0 && response.ok;
 
-      if (isHealthy && !this.cloudConfig.isConnected) {
+      if (isHealthy && !this.firebaseConfig.isConnected) {
         // Connection restored
-        this.cloudConfig.isConnected = true;
+        this.firebaseConfig.isConnected = true;
         this.updateSyncStatus('connected', 'Connection restored');
 
         if (this.syncQueue.length > 0) {
-          await this.saveToCloud();
+          await this.saveToFirebase();
         }
-      } else if (!isHealthy && this.cloudConfig.isConnected) {
+      } else if (!isHealthy && this.firebaseConfig.isConnected) {
         // Connection lost
-        this.cloudConfig.isConnected = false;
+        this.firebaseConfig.isConnected = false;
         this.updateSyncStatus('offline', 'Connection lost');
       }
 
@@ -2140,10 +2459,10 @@ class BribeYourselfFitCloud {
     this.autoSyncInterval = setInterval(() => {
       if (
         this.autoSyncEnabled &&
-        this.cloudConfig.isConnected &&
+        this.firebaseConfig.isConnected &&
         this.syncQueue.length > 0
       ) {
-        this.saveToCloud();
+        this.saveToFirebase();
       }
     }, 5 * 60 * 1000);
   }
@@ -2153,19 +2472,19 @@ class BribeYourselfFitCloud {
    */
   async forceSync() {
     console.log('Force sync starting...');
-    console.log('Connection status:', this.cloudConfig.isConnected);
+    console.log('Connection status:', this.firebaseConfig.isConnected);
 
-    if (!this.cloudConfig.isConnected) {
+    if (!this.firebaseConfig.isConnected) {
       console.log('Not connected, testing connection first...');
-      const connected = await this.testCloudConnection();
+      const connected = await this.testFirebaseConnection();
       if (!connected) {
-        this.showError('Cannot sync - connection to cloud storage failed');
+        this.showError('Cannot sync - connection to Firebase failed');
         return;
       }
     }
 
-    console.log('Attempting to save to cloud...');
-    const success = await this.saveToCloud();
+    console.log('Attempting to save to Firebase...');
+    const success = await this.saveToFirebase();
     if (success) {
       this.showSuccess('✅ Force sync completed successfully');
       // Update settings display after successful sync
@@ -2184,13 +2503,13 @@ class BribeYourselfFitCloud {
 
     if (!status) {
       // Determine status automatically
-      if (!this.cloudConfig.token || !this.cloudConfig.baseId) {
+      if (!this.firebaseConfig.apiKey || !this.firebaseConfig.databaseURL) {
         status = 'offline';
         message = 'Not Configured';
-      } else if (!this.cloudConfig.isConnected) {
+      } else if (!this.firebaseConfig.isConnected) {
         status = 'error';
         message = 'Connection Failed';
-      } else if (this.cloudConfig.syncInProgress) {
+      } else if (this.firebaseConfig.syncInProgress) {
         status = 'syncing';
         message = 'Syncing...';
       } else {
@@ -2325,21 +2644,26 @@ class BribeYourselfFitCloud {
     }
 
     // Cloud setup form
-    const cloudSetupForm = document.getElementById('cloudSetupForm');
+    const cloudSetupForm = document.getElementById('firebaseSetupForm');
     if (cloudSetupForm) {
       const testConnectionBtn = document.getElementById('testConnection');
       if (testConnectionBtn) {
-        testConnectionBtn.addEventListener(
-          'click',
-          this.handleTestConnection.bind(this)
-        );
+        // Remove any existing listeners
+        testConnectionBtn.replaceWith(testConnectionBtn.cloneNode(true));
+        // Get the fresh element and attach listener
+        const newTestBtn = document.getElementById('testConnection');
+        newTestBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          console.log('🔗 Test connection button clicked');
+          this.handleTestConnection();
+        });
         console.log('✅ Test connection listener attached');
       }
 
       const toggleApiKeyBtn = document.getElementById('toggleApiKey');
       if (toggleApiKeyBtn) {
         toggleApiKeyBtn.addEventListener('click', () =>
-          this.togglePasswordVisibility('airtableToken')
+          this.togglePasswordVisibility('firebaseApiKey')
         );
         console.log('✅ Toggle API key listener attached');
       }
@@ -2476,10 +2800,13 @@ class BribeYourselfFitCloud {
     // Update API key button
     const updateApiKeyBtn = document.getElementById('updateApiKeyBtn');
     if (updateApiKeyBtn) {
-      updateApiKeyBtn.addEventListener(
-        'click',
-        this.handleUpdateApiKey.bind(this)
-      );
+      // Remove existing listener and add new one
+      updateApiKeyBtn.replaceWith(updateApiKeyBtn.cloneNode(true));
+      document
+        .getElementById('updateApiKeyBtn')
+        .addEventListener('click', () => {
+          this.handleUpdateApiKey();
+        });
       console.log('✅ Update API key button listener attached');
     }
 
@@ -2525,8 +2852,11 @@ class BribeYourselfFitCloud {
     // Export buttons
     const exportCloudBtn = document.getElementById('exportCloudDataBtn');
     if (exportCloudBtn) {
-      exportCloudBtn.addEventListener('click', this.exportCloudData.bind(this));
-      console.log('✅ Export cloud button listener attached');
+      exportCloudBtn.addEventListener(
+        'click',
+        this.exportFirebaseData.bind(this)
+      );
+      console.log('✅ Export Firebase button listener attached');
     }
 
     const exportLocalBtn = document.getElementById('exportLocalDataBtn');
@@ -2543,7 +2873,10 @@ class BribeYourselfFitCloud {
 
     const resetCloudBtn = document.getElementById('resetCloudDataBtn');
     if (resetCloudBtn) {
-      resetCloudBtn.addEventListener('click', this.resetCloudData.bind(this));
+      resetCloudBtn.addEventListener(
+        'click',
+        this.resetFirebaseData.bind(this)
+      );
     }
 
     const resetAllBtn = document.getElementById('resetAllDataBtn');
@@ -2735,7 +3068,10 @@ class BribeYourselfFitCloud {
     // Export buttons
     const exportCloudBtn = document.getElementById('exportCloudDataBtn');
     if (exportCloudBtn) {
-      exportCloudBtn.addEventListener('click', this.exportCloudData.bind(this));
+      exportCloudBtn.addEventListener(
+        'click',
+        this.exportFirebaseData.bind(this)
+      );
     }
 
     const exportLocalBtn = document.getElementById('exportLocalDataBtn');
@@ -2751,7 +3087,10 @@ class BribeYourselfFitCloud {
 
     const resetCloudBtn = document.getElementById('resetCloudDataBtn');
     if (resetCloudBtn) {
-      resetCloudBtn.addEventListener('click', this.resetCloudData.bind(this));
+      resetCloudBtn.addEventListener(
+        'click',
+        this.resetFirebaseData.bind(this)
+      );
     }
 
     const resetAllBtn = document.getElementById('resetAllDataBtn');
@@ -2875,50 +3214,59 @@ class BribeYourselfFitCloud {
   }
 
   /**
-   * Enhanced test connection with better validation for Airtable
+   * Enhanced test connection with validation for Firebase
    */
   async handleTestConnection() {
-    const tokenInput = document.getElementById('airtableToken');
-    const baseIdInput = document.getElementById('airtableBaseId');
-    const token = tokenInput ? tokenInput.value.trim() : '';
-    const baseId = baseIdInput ? baseIdInput.value.trim() : '';
+    const apiKeyInput = document.getElementById('firebaseApiKey');
+    const databaseUrlInput = document.getElementById('firebaseDatabaseUrl');
+    const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+    const databaseUrl = databaseUrlInput ? databaseUrlInput.value.trim() : '';
 
-    // Validate token format first
-    const tokenValidation = this.validateApiKeyFormat(token);
-    if (!tokenValidation.valid) {
-      this.updateConnectionStatus('error', tokenValidation.message);
+    // Validate API key format first
+    const apiKeyValidation = this.validateFirebaseApiKey(apiKey);
+    if (!apiKeyValidation.valid) {
+      this.updateConnectionStatus('error', apiKeyValidation.message);
       return;
     }
 
-    // Validate base ID format
-    const baseIdValidation = this.validateBaseIdFormat(baseId);
-    if (!baseIdValidation.valid) {
-      this.updateConnectionStatus('error', baseIdValidation.message);
+    // Validate database URL format
+    const urlValidation = this.validateFirebaseDatabaseUrl(databaseUrl);
+    if (!urlValidation.valid) {
+      this.updateConnectionStatus('error', urlValidation.message);
       return;
     }
 
     // Show validation success message briefly
     this.updateConnectionStatus(
       'testing',
-      'Credentials look good, testing connection...'
+      'Credentials look good, testing Firebase connection...'
     );
 
     // Wait a moment then proceed with connection test
     setTimeout(async () => {
       // Temporarily set credentials for testing
-      const originalToken = this.cloudConfig.token;
-      const originalBaseId = this.cloudConfig.baseId;
-      this.cloudConfig.token = token;
-      this.cloudConfig.baseId = baseId;
+      const originalConfig = { ...this.firebaseConfig };
 
-      const success = await this.testCloudConnection();
+      this.firebaseConfig.apiKey = apiKey;
+      this.firebaseConfig.databaseURL = databaseUrl;
+
+      // Extract project ID from database URL for other config values
+      const projectIdMatch = databaseUrl.match(/https:\/\/([^-]+)/);
+      if (projectIdMatch) {
+        const projectId = projectIdMatch[1];
+        this.firebaseConfig.projectId = projectId;
+        this.firebaseConfig.authDomain = `${projectId}.firebaseapp.com`;
+        this.firebaseConfig.storageBucket = `${projectId}.appspot.com`;
+      }
+
+      const success = await this.testFirebaseConnection();
 
       if (success) {
         this.updateConnectionStatus(
           'success',
-          '✅ Connection successful! You can now complete your profile setup.'
+          '✅ Firebase connection successful! You can now complete your profile setup.'
         );
-        this.saveCloudConfig();
+        this.saveFirebaseConfig();
 
         // Show profile section
         const profileSection = document.getElementById('profileSection');
@@ -2927,9 +3275,8 @@ class BribeYourselfFitCloud {
           profileSection.scrollIntoView({ behavior: 'smooth' });
         }
       } else {
-        // Restore original credentials if test failed
-        this.cloudConfig.token = originalToken;
-        this.cloudConfig.baseId = originalBaseId;
+        // Restore original configuration if test failed
+        this.firebaseConfig = originalConfig;
       }
     }, 1000);
   }
@@ -2951,15 +3298,19 @@ class BribeYourselfFitCloud {
     }
   }
 
-  /**
-   * Handle user profile setup with cloud integration
-   */
   async handleSetup(e) {
     e.preventDefault();
 
-    // Ensure Airtable credentials are set
-    if (!this.cloudConfig.token || !this.cloudConfig.baseId) {
-      this.showError('Please test your Airtable connection first');
+    // Ensure Firebase credentials are set
+    if (!this.firebaseConfig.apiKey || !this.firebaseConfig.databaseURL) {
+      this.showError('Please test your Firebase connection first');
+      return;
+    }
+
+    if (!this.firebaseConfig.isConnected) {
+      this.showError(
+        'Please ensure Firebase connection is successful before creating your profile'
+      );
       return;
     }
 
@@ -3004,7 +3355,7 @@ class BribeYourselfFitCloud {
     this.saveLocalData();
 
     // Try to sync to cloud
-    const cloudSyncSuccess = await this.saveToCloud();
+    const cloudSyncSuccess = await this.saveToFirebase();
 
     // Show app regardless of cloud sync status
     this.showAppScreen();
@@ -3013,11 +3364,11 @@ class BribeYourselfFitCloud {
 
     if (cloudSyncSuccess) {
       this.showSuccess(
-        '🎉 Profile created and synced to cloud! Start logging your fitness journey.'
+        '🎉 Profile created and synced to Firebase! Start logging your real-time fitness journey.'
       );
     } else {
       this.showSuccess(
-        'Profile created! Data saved locally and will sync when cloud connection is restored.'
+        'Profile created! Data saved locally and will sync to Firebase when connection is restored.'
       );
     }
   }
@@ -3104,8 +3455,8 @@ class BribeYourselfFitCloud {
     // Add to sync queue and try cloud sync
     this.addToSyncQueue('dailyLog', logEntry);
 
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      await this.saveToCloud();
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      await this.saveToFirebase();
     }
 
     // Update dashboard
@@ -3494,9 +3845,9 @@ class BribeYourselfFitCloud {
     );
 
     const stats = {
-      version: 'Airtable v1.1.0',
-      cloudConnected: this.cloudConfig.isConnected,
-      lastCloudSync: this.cloudConfig.lastSync,
+      version: 'Firebase v1.1.0',
+      cloudConnected: this.firebaseConfig.isConnected,
+      lastCloudSync: this.firebaseConfig.lastSync,
       profileCreated: this.currentUser?.setupDate,
       totalDaysLogged: totalLogs,
       weightEntriesLogged: weightLogs,
@@ -3557,8 +3908,8 @@ class BribeYourselfFitCloud {
     this.updateThemeToggle(document.documentElement.getAttribute('data-theme'));
 
     // Sync settings to cloud
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      this.saveToCloud();
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      this.saveToFirebase();
     }
   }
 
@@ -3586,14 +3937,17 @@ class BribeYourselfFitCloud {
       console.log(`🔄 Weight unit changed to: ${value}`);
       // Update all weight displays immediately
       this.updateWeightDisplays();
+      // Also update the settings display to convert the input values
+      setTimeout(() => {
+        this.updateSettingsDisplay();
+      }, 100);
     } else if (setting === 'dateFormat') {
       // Update date displays if needed
       this.updateCurrentDate();
     }
-
     // Sync settings to cloud
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      this.saveToCloud();
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      this.saveToFirebase();
     }
   }
 
@@ -3631,10 +3985,10 @@ class BribeYourselfFitCloud {
     this.saveLocalData();
     this.updateDashboard();
 
-    // Sync to cloud
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      this.saveToCloud();
-      this.showSuccess('Daily goals updated and synced to cloud!');
+    // Sync to Firebase
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      this.saveToFirebase();
+      this.showSuccess('Daily goals updated and synced to Firebase!');
     } else {
       this.showSuccess('Daily goals updated! Will sync when connected.');
     }
@@ -3645,11 +3999,23 @@ class BribeYourselfFitCloud {
    */
   handleUpdateWeightGoals() {
     const goalWeightInput = document.getElementById('settingsGoalWeight');
-    const goalWeight = parseFloat(goalWeightInput.value);
+    const inputValue = parseFloat(goalWeightInput.value);
 
-    // Validate input
-    if (isNaN(goalWeight) || goalWeight < 50 || goalWeight > 1000) {
-      this.showError('Goal weight must be between 50 and 1000 lbs');
+    // Convert displayed value back to lbs for storage
+    const weightUnit = this.settings?.weightUnit || 'lbs';
+    const goalWeight =
+      weightUnit === 'kg'
+        ? inputValue / 0.453592 // Convert kg back to lbs for storage
+        : inputValue;
+
+    // Validate input (check ranges in appropriate unit)
+    const minWeight = weightUnit === 'kg' ? 22.7 : 50; // 50 lbs = 22.7 kg
+    const maxWeight = weightUnit === 'kg' ? 453.6 : 1000; // 1000 lbs = 453.6 kg
+
+    if (isNaN(inputValue) || inputValue < minWeight || inputValue > maxWeight) {
+      this.showError(
+        `Goal weight must be between ${minWeight} and ${maxWeight} ${weightUnit}`
+      );
       return;
     }
 
@@ -3660,7 +4026,7 @@ class BribeYourselfFitCloud {
       return;
     }
 
-    // Update goal weight
+    // Update goal weight (stored in lbs)
     this.currentUser.goalWeight = goalWeight;
 
     // Regenerate weight milestones
@@ -3669,10 +4035,10 @@ class BribeYourselfFitCloud {
     this.saveLocalData();
     this.updateDashboard();
 
-    // Sync to cloud
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      this.saveToCloud();
-      this.showSuccess('Weight goal updated and synced to cloud!');
+    // Sync to Firebase
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      this.saveToFirebase();
+      this.showSuccess('Weight goal updated and synced to Firebase!');
     } else {
       this.showSuccess('Weight goal updated! Will sync when connected.');
     }
@@ -3693,8 +4059,8 @@ class BribeYourselfFitCloud {
     this.updateDashboard();
 
     // Sync to cloud
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      this.saveToCloud();
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      this.saveToFirebase();
       this.showSuccess('All streaks reset and synced to cloud!');
     } else {
       this.showSuccess('All streaks reset! Will sync when connected.');
@@ -3713,8 +4079,8 @@ class BribeYourselfFitCloud {
     this.loadTodaysData(); // Refresh the form
 
     // Sync to cloud
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      this.saveToCloud();
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      this.saveToFirebase();
       this.showSuccess("Today's log cleared and synced to cloud!");
     } else {
       this.showSuccess("Today's log cleared! Will sync when connected.");
@@ -3737,8 +4103,8 @@ class BribeYourselfFitCloud {
     this.saveLocalData();
 
     // Sync to cloud
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      this.saveToCloud();
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      this.saveToFirebase();
     }
 
     this.showSetupScreen();
@@ -3764,8 +4130,8 @@ class BribeYourselfFitCloud {
     this.updateDashboard();
 
     // Sync to cloud
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      this.saveToCloud();
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      this.saveToFirebase();
       this.showSuccess('All daily logs cleared and synced to cloud!');
     } else {
       this.showSuccess('All daily logs cleared! Will sync when connected.');
@@ -3926,8 +4292,8 @@ class BribeYourselfFitCloud {
    */
   updateSettingsDisplay() {
     console.log('🔄 Updating settings display...');
-    console.log('Current connection status:', this.cloudConfig.isConnected);
-    console.log('Last sync:', this.cloudConfig.lastSync);
+    console.log('Current connection status:', this.firebaseConfig.isConnected);
+    console.log('Last sync:', this.firebaseConfig.lastSync);
 
     // Wait a moment for DOM to be ready if we're on settings tab
     if (this.currentTab === 'settings') {
@@ -3958,11 +4324,11 @@ class BribeYourselfFitCloud {
       'settingsConnectionStatus'
     );
     if (connectionStatusEl) {
-      const status = this.cloudConfig.isConnected
+      const status = this.firebaseConfig.isConnected
         ? '✅ Connected'
         : '❌ Disconnected';
       connectionStatusEl.textContent = status;
-      connectionStatusEl.style.color = this.cloudConfig.isConnected
+      connectionStatusEl.style.color = this.firebaseConfig.isConnected
         ? 'var(--accent-success)'
         : 'var(--accent-danger)';
       console.log('✅ Connection status updated to:', status);
@@ -3979,8 +4345,8 @@ class BribeYourselfFitCloud {
     // Update last sync time - CRITICAL FIX
     const lastSyncEl = document.getElementById('lastSyncTime');
     if (lastSyncEl) {
-      if (this.cloudConfig.lastSync) {
-        const lastSync = new Date(this.cloudConfig.lastSync);
+      if (this.firebaseConfig.lastSync) {
+        const lastSync = new Date(this.firebaseConfig.lastSync);
         const syncTime = lastSync.toLocaleString();
         lastSyncEl.textContent = syncTime;
         lastSyncEl.style.color = 'var(--accent-success)';
@@ -4023,9 +4389,9 @@ class BribeYourselfFitCloud {
 
     // Update API key display with masked value
     const settingsApiKeyEl = document.getElementById('settingsApiKey');
-    if (settingsApiKeyEl && this.cloudConfig.token) {
+    if (settingsApiKeyEl && this.firebaseConfig.token) {
       const maskedToken =
-        this.cloudConfig.token.substring(0, 8) + '••••••••••••';
+        this.firebaseConfig.token.substring(0, 8) + '••••••••••••';
       settingsApiKeyEl.placeholder = maskedToken;
       console.log('✅ API key display updated');
     }
@@ -5063,8 +5429,8 @@ class BribeYourselfFitCloud {
 
     // Add to sync queue and sync to Airtable
     this.addToSyncQueue('customReward', customReward);
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      this.saveToCloud();
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      this.saveToFirebase();
     }
 
     // Refresh displays
@@ -5129,19 +5495,24 @@ class BribeYourselfFitCloud {
       value: milestone.value,
       title: milestone.title,
       description: milestone.description,
-      customReward: this.getCustomRewardForMilestone(milestone),
       claimedDate: new Date().toISOString(),
       claimedStreak: this.streaks.overall,
       claimedWeight: this.currentUser.currentWeight,
     };
+
+    // Only add customReward if it exists and isn't undefined
+    const customReward = this.getCustomRewardForMilestone(milestone);
+    if (customReward && typeof customReward === 'object') {
+      achievement.customReward = customReward;
+    }
 
     this.achievements.push(achievement);
     this.saveLocalData();
 
     // Add to sync queue and sync to cloud
     this.addToSyncQueue('achievement', achievement);
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      await this.saveToCloud();
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      await this.saveToFirebase();
     }
 
     this.showAchievementModal(achievement);
@@ -5196,8 +5567,8 @@ class BribeYourselfFitCloud {
 
     // Add to sync queue and sync to cloud
     this.addToSyncQueue('customReward', reward);
-    if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-      await this.saveToCloud();
+    if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+      await this.saveToFirebase();
     }
 
     e.target.reset();
@@ -5288,8 +5659,8 @@ class BribeYourselfFitCloud {
 
       // Add to sync queue and sync to cloud
       this.addToSyncQueue('deleteCustomReward', { index });
-      if (this.autoSyncEnabled && this.cloudConfig.isConnected) {
-        await this.saveToCloud();
+      if (this.autoSyncEnabled && this.firebaseConfig.isConnected) {
+        await this.saveToFirebase();
       }
 
       this.renderCustomRewards();
@@ -5458,22 +5829,22 @@ class BribeYourselfFitCloud {
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   // Create global app instance
-  window.app = new BribeYourselfFitCloud();
+  window.app = new BribeYourselfFitFirebase();
 
   // Add helpful global functions for development and user access
   window.exportData = () => app.exportLocalData();
-  window.exportCloudData = () => app.exportCloudData();
+  window.exportFirebaseData = () => app.exportFirebaseData();
   window.forceSync = () => app.forceSync();
   window.testConnection = () => app.testCloudConnection();
   window.getStats = () => app.getAppStats();
   window.resetData = () => app.resetAllData();
 
-  console.log('🎉 BribeYourselfFit Cloud initialized successfully!');
-  console.log('Cloud commands available:');
+  console.log('🎉 BribeYourselfFit Firebase initialized successfully!');
+  console.log('Firebase commands available:');
   console.log('- exportData() - Export local data backup');
-  console.log('- exportCloudData() - Export cloud data');
+  console.log('- exportFirebaseData() - Export Firebase data');
   console.log('- forceSync() - Force immediate sync');
-  console.log('- testConnection() - Test cloud connection');
+  console.log('- testConnection() - Test Firebase connection');
   console.log('- getStats() - View app statistics');
   console.log('- resetData() - Reset all data (careful!)');
 });

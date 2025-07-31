@@ -1,5 +1,5 @@
-// BribeYourselfFit Service Worker - Basic Caching
-const CACHE_NAME = 'byf-v1.0.0';
+// BribeYourselfFit Firebase Service Worker - Basic Caching
+const CACHE_NAME = 'byf-firebase-v1.1.0';
 const STATIC_ASSETS = [
   './index.html',
   './styles.css',
