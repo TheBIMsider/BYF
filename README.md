@@ -55,7 +55,8 @@ The magic happens in the rewards system. Set your own "bribes":
 
 You know what motivates you. The app just helps you stay accountable to your own system.
 
-## 📱 Screenshot ## (localStorage version shown)
+## 📱 Screenshot 
+(localStorage version shown)
 
 <img width="1156" height="941" alt="BYF_Local" src="https://github.com/user-attachments/assets/0cd0f91f-6497-41b0-93a6-5064bbc1eb58" />
 
