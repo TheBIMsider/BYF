@@ -46,7 +46,7 @@ You know what motivates you. The app just helps you stay accountable to your own
 
 ## 📱 Screenshot
 
-<img width="1160" height="941" alt="BYF_Local" src="https://github.com/user-attachments/assets/ee60edc5-d021-42f9-bf62-6b570cd949f4" />
+<img width="1156" height="941" alt="BYF_Local" src="https://github.com/user-attachments/assets/0cd0f91f-6497-41b0-93a6-5064bbc1eb58" />
 
 ## 🚀 **Get Started in 2 Minutes**
 
