@@ -25,7 +25,7 @@ That's why BribeYourselfFit was born - a fitness tracker that lets you set your 
 
 ## 🎮 **How It Works**
 
-**BribeYourselfFit** combines simple daily tracking with powerful motivation:
+BribeYourselfFit combines simple daily tracking with powerful motivation:
 
 ### **Daily Tracking Made Simple**
 - **Weight**: Log weekly (because daily fluctuations are noise)
