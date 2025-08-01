@@ -11,7 +11,7 @@ This Firebase version was developed using cutting-edge AI-powered development to
 - ⚡ **Live Coding Sessions**: Real-time AI pair programming for Firebase integration
 - 🧠 **Claude (Anthropic)**: Real-time database architecture, API integration, and systematic debugging
 - 👨‍💻 **GitHub Copilot**: Intelligent code completion and suggestions
-- 🏗️ **Human Expertise**: AECO/BIM domain knowledge and project direction by [TheBIMsider](https://bio.link/thebimsider)
+- 🏗️ **Human Expertise**: AECO/BIM domain knowledge and project direction by [The BIMsider](https://bio.link/thebimsider)
 
 This demonstrates how AI tools enable domain experts to build sophisticated real-time applications with modern Firebase technologies and live data synchronization.
 
