@@ -9,7 +9,7 @@ This project was created using modern AI-powered development tools, demonstratin
 - ⚡ **Live Coding Sessions**: Built live using AI pair programming and systematic debugging
 - 🧠 **Claude (Anthropic)**: Primary AI assistant for architecture, code generation, documentation, and problem-solving
 - 👨‍💻 **GitHub Copilot**: Code completion and intelligent suggestions
-- 🏗️ **Human Expertise**: AECO/BIM industry knowledge and project direction by [TheBIMsider](https://bio.link/thebimsider)
+- 🏗️ **Human Expertise**: AECO/BIM industry knowledge and project direction by [The BIMsider](https://bio.link/thebimsider)
 
 **Why this matters:** This showcases how AI tools can help domain experts (like AECO professionals) create sophisticated web applications without traditional programming backgrounds, while maintaining high code quality and best practices through systematic debugging and iterative development.
 
