@@ -11,7 +11,7 @@ This cloud version was developed using cutting-edge AI-powered development tools
 - ⚡ **Vide Coding Sessions**: Live AI pair programming for rapid development
 - 🧠 **Claude (Anthropic)**: API integration, cloud architecture, and documentation
 - 👨‍💻 **GitHub Copilot**: Intelligent code completion and suggestions
-- 🏗️ **Human Expertise**: AECO/BIM domain knowledge by [TheBIMsider](https://bio.link/thebimsider)
+- 🏗️ **Human Expertise**: AECO/BIM domain knowledge by [The BIMsider](https://bio.link/thebimsider)
 
 This demonstrates how AI tools enable domain experts to build sophisticated cloud-integrated applications with modern web technologies and API patterns.
 
