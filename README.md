@@ -11,7 +11,7 @@ This Airtable version was developed using advanced AI-powered development tools:
 - ⚡ **Live Coding Sessions**: Real-time AI pair programming for database integration
 - 🧠 **Claude (Anthropic)**: Database architecture, API integration, and systematic debugging
 - 👨‍💻 **GitHub Copilot**: Intelligent code completion and suggestions
-- 🏗️ **Human Expertise**: AECO/BIM domain knowledge and project direction by [TheBIMsider](https://bio.link/thebimsider)
+- 🏗️ **Human Expertise**: AECO/BIM domain knowledge and project direction by [The BIMsider](https://bio.link/thebimsider)
 
 This showcases how AI tools enable domain experts to build sophisticated database-driven applications with modern API patterns and structured data relationships.
 
