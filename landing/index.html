@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Meta tags for SEO and responsiveness -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Open-source, self-hosted fitness tracker with streak-based motivation. Track steps, workouts, and healthy habits with custom rewards.">
+    
+    <title>BribeYourselfFit - Gamified Fitness Tracker</title>
+    
+    <!-- Link to external stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    
+    <!-- Hero Section - First thing users see -->
+    <section class="hero">
+        <div class="container">
+            <h1>BribeYourselfFit</h1>
+            <p class="tagline">Gamified Fitness Tracking with Streak-Based Motivation</p>
+            <p class="subtitle">Open-source • Self-hosted • Your data, your rules</p>
+            
+            <!-- Call-to-action buttons -->
+            <div class="cta-buttons">
+                <a href="https://github.com/TheBIMsider/BYF" class="btn btn-primary" target="_blank">View on GitHub</a>
+                <a href="https://thebimsider.github.io/BYF/" class="btn btn-secondary" target="_blank">Try Live Demo</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section - What makes this app special -->
+    <section class="features">
+        <div class="container">
+            <h2>Why BribeYourselfFit?</h2>
+            
+            <div class="feature-grid">
+                <!-- Feature 1 -->
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Your Rewards, Your Way</h3>
+                    <p>Set custom rewards that actually motivate you. Not everyone wants new clothes or a gym membership. Want a cheat meal at 7 days? A weekend trip at 100? You decide.</p>
+                </div>
+                
+                <!-- Feature 2 -->
+                <div class="feature-card">
+                    <div class="feature-icon">🔥</div>
+                    <h3>Streak-Based Motivation</h3>
+                    <p>Build individual streaks for steps, exercise, water, and wellness. Hit all daily goals for your overall streak. Watch the fire grow as you stay consistent.</p>
+                </div>
+                
+                <!-- Feature 3 -->
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Simple Daily Tracking</h3>
+                    <p>Weight (weekly), steps, exercise minutes, water intake, and a 5-point wellness checklist. Track what matters without overwhelming complexity.</p>
+                </div>
+                
+                <!-- Feature 4 -->
+                <div class="feature-card">
+                    <div class="feature-icon">🏠</div>
+                    <h3>Own Your Data</h3>
+                    <p>Choose your storage: localStorage (browser only), JSONBin (cloud), Airtable (database), or Firebase (real-time). No tracking. No ads. No BS.</p>
+                </div>
+                
+                <!-- Feature 5 -->
+                <div class="feature-card">
+                    <div class="feature-icon">📱</div>
+                    <h3>Works Everywhere</h3>
+                    <p>Progressive Web App that installs like a native app. Works on phone, tablet, and desktop. Offline capable with localStorage version.</p>
+                </div>
+                
+                <!-- Feature 6 -->
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>Built with AI</h3>
+                    <p>Created using Claude AI and GitHub Copilot. A showcase of human-AI collaboration in modern development. Open-source and beginner-friendly.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works">
+        <div class="container">
+            <h2>How It Works</h2>
+            
+            <div class="steps">
+                <!-- Step 1 -->
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Set Your Profile</h3>
+                    <p>Starting weight, goal weight, and daily targets for steps, exercise, and water.</p>
+                </div>
+                
+                <!-- Step 2 -->
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Choose Your Rewards</h3>
+                    <p>What motivates YOU? Set custom "bribes" for hitting 7, 14, 30, 50, 100+ day streaks.</p>
+                </div>
+                
+                <!-- Step 3 -->
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Log Daily</h3>
+                    <p>Quick daily check-in: steps, exercise, water, and 5-point wellness score.</p>
+                </div>
+                
+                <!-- Step 4 -->
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>Build Streaks</h3>
+                    <p>Watch your streaks grow. Claim rewards when you hit milestones. Stay motivated.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Storage Options Section -->
+    <section class="storage-options">
+        <div class="container">
+            <h2>Choose Your Storage Backend</h2>
+            <p class="section-intro">Pick the option that fits your needs</p>
+            
+            <div class="options-grid">
+                <!-- localStorage -->
+                <div class="option-card">
+                    <h3>🏠 localStorage</h3>
+                    <p class="option-tag">Recommended for Beginners</p>
+                    <ul>
+                        <li>No setup required</li>
+                        <li>Works offline</li>
+                        <li>Data stays in browser</li>
+                        <li>Ultimate privacy</li>
+                    </ul>
+                    <a href="https://github.com/TheBIMsider/BYF" class="option-link" target="_blank">Get Started →</a>
+                </div>
+                
+                <!-- JSONBin -->
+                <div class="option-card">
+                    <h3>🌐 JSONBin.io</h3>
+                    <p class="option-tag">Simple Cloud Sync</p>
+                    <ul>
+                        <li>Free API key</li>
+                        <li>Cross-device sync</li>
+                        <li>Quick setup</li>
+                        <li>Cloud backup</li>
+                    </ul>
+                    <a href="https://github.com/TheBIMsider/BYF/tree/jsonbin-version" class="option-link" target="_blank">View Branch →</a>
+                </div>
+                
+                <!-- Airtable -->
+                <div class="option-card">
+                    <h3>📊 Airtable</h3>
+                    <p class="option-tag">Database Power</p>
+                    <ul>
+                        <li>5 structured tables</li>
+                        <li>Rich data features</li>
+                        <li>Sharing capabilities</li>
+                        <li>Advanced queries</li>
+                    </ul>
+                    <a href="https://github.com/TheBIMsider/BYF/tree/airtable-version" class="option-link" target="_blank">View Branch →</a>
+                </div>
+                
+                <!-- Firebase -->
+                <div class="option-card highlighted">
+                    <h3>🔥 Firebase</h3>
+                    <p class="option-tag">Real-time Sync</p>
+                    <ul>
+                        <li>Instant sync</li>
+                        <li>Google infrastructure</li>
+                        <li>Offline persistence</li>
+                        <li>Enterprise scale</li>
+                    </ul>
+                    <a href="https://github.com/TheBIMsider/BYF/tree/firebase-version" class="option-link" target="_blank">View Branch →</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat">
+                    <div class="stat-number">2,500+</div>
+                    <div class="stat-label">Lines of Code</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">4</div>
+                    <div class="stat-label">Storage Options</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Open Source</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">Tracking or Ads</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="final-cta">
+        <div class="container">
+            <h2>Ready to Start Your Fitness Journey?</h2>
+            <p>Fork the repo, choose your storage, and start building streaks today.</p>
+            
+            <div class="cta-buttons">
+                <a href="https://github.com/TheBIMsider/BYF" class="btn btn-primary" target="_blank">Get Started on GitHub</a>
+                <a href="https://thebimsider.github.io/BYF/" class="btn btn-secondary" target="_blank">Try Demo First</a>
+            </div>
+            
+            <p class="footnote">No account required • No credit card • No BS</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 BribeYourselfFit | Open Source | BSD-3-Clause License</p>
+            <p>Built with ❤️ & 🤖 by <a href="https://bio.link/thebimsider" target="_blank">The BIMsider</a></p>
+        </div>
+    </footer>
+
+    <!-- Link to external JavaScript (if needed later) -->
+    <script src="script.js"></script>
+</body>
+</html>

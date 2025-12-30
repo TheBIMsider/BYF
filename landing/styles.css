@@ -1,0 +1,446 @@
+/* ============================================
+   BribeYourselfFit Landing Page Styles
+   Created: 2025
+   
+   COLOR PALETTE:
+   - Primary Purple: #667eea
+   - Secondary Purple: #764ba2
+   - Dark Text: #2d3748
+   - Light Text: #718096
+   - White: #ffffff
+   
+   This file uses CSS Grid and Flexbox for layout.
+   Mobile-first responsive design.
+   ============================================ */
+
+/* ============================================
+   RESET & BASE STYLES
+   ============================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    color: #2d3748;
+    line-height: 1.6;
+    background: #f7fafc;
+}
+
+/* Container for consistent padding and max-width */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* ============================================
+   HERO SECTION - First thing visitors see
+   ============================================ */
+.hero {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 6rem 0 4rem;
+    text-align: center;
+}
+
+.hero h1 {
+    font-size: 3.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    letter-spacing: -0.5px;
+}
+
+.hero .tagline {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 300;
+}
+
+.hero .subtitle {
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+    opacity: 0.9;
+}
+
+/* Call-to-Action Buttons */
+.cta-buttons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-block;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: white;
+    color: #667eea;
+}
+
+.btn-primary:hover {
+    background: #f7fafc;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.btn-secondary {
+    background: transparent;
+    color: white;
+    border: 2px solid white;
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+/* ============================================
+   FEATURES SECTION
+   ============================================ */
+.features {
+    padding: 4rem 0;
+    background: white;
+}
+
+.features h2 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 3rem;
+    color: #2d3748;
+}
+
+/* Grid layout for feature cards */
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.feature-card {
+    padding: 2rem;
+    border-radius: 12px;
+    background: #f7fafc;
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.feature-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: #2d3748;
+}
+
+.feature-card p {
+    color: #718096;
+    line-height: 1.7;
+}
+
+/* ============================================
+   HOW IT WORKS SECTION
+   ============================================ */
+.how-it-works {
+    padding: 4rem 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.how-it-works h2 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 3rem;
+}
+
+.steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+}
+
+.step {
+    text-align: center;
+    padding: 2rem;
+}
+
+.step-number {
+    width: 60px;
+    height: 60px;
+    background: white;
+    color: #667eea;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0 auto 1rem;
+}
+
+.step h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.step p {
+    opacity: 0.9;
+}
+
+/* ============================================
+   STORAGE OPTIONS SECTION
+   ============================================ */
+.storage-options {
+    padding: 4rem 0;
+    background: white;
+}
+
+.storage-options h2 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: #2d3748;
+}
+
+.section-intro {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #718096;
+    margin-bottom: 3rem;
+}
+
+.options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+}
+
+.option-card {
+    padding: 2rem;
+    border-radius: 12px;
+    background: #f7fafc;
+    border: 2px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.option-card:hover {
+    border-color: #667eea;
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+}
+
+/* Highlighted card (Firebase) */
+.option-card.highlighted {
+    border-color: #667eea;
+    background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+}
+
+.option-card h3 {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+    color: #2d3748;
+}
+
+.option-tag {
+    font-size: 0.9rem;
+    color: #667eea;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.option-card ul {
+    list-style: none;
+    margin-bottom: 1.5rem;
+}
+
+.option-card ul li {
+    padding: 0.5rem 0;
+    color: #718096;
+}
+
+/* Checkmark bullets */
+.option-card ul li:before {
+    content: "✓ ";
+    color: #48bb78;
+    font-weight: bold;
+    margin-right: 0.5rem;
+}
+
+.option-link {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.option-link:hover {
+    color: #764ba2;
+}
+
+/* ============================================
+   STATS SECTION
+   ============================================ */
+.stats {
+    padding: 4rem 0;
+    background: #f7fafc;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+    text-align: center;
+}
+
+.stat {
+    padding: 2rem;
+}
+
+.stat-number {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    font-size: 1.1rem;
+    color: #718096;
+}
+
+/* ============================================
+   FINAL CTA SECTION
+   ============================================ */
+.final-cta {
+    padding: 4rem 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-align: center;
+}
+
+.final-cta h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.final-cta p {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    opacity: 0.9;
+}
+
+.footnote {
+    margin-top: 1.5rem !important;
+    font-size: 1rem !important;
+    opacity: 0.7 !important;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+footer {
+    padding: 2rem 0;
+    background: #2d3748;
+    color: white;
+    text-align: center;
+}
+
+footer p {
+    margin: 0.5rem 0;
+}
+
+footer a {
+    color: #667eea;
+    text-decoration: none;
+}
+
+footer a:hover {
+    text-decoration: underline;
+}
+
+/* ============================================
+   RESPONSIVE DESIGN - Mobile Adjustments
+   ============================================ */
+
+/* Tablets and smaller */
+@media (max-width: 768px) {
+    .hero h1 {
+        font-size: 2.5rem;
+    }
+    
+    .hero .tagline {
+        font-size: 1.2rem;
+    }
+    
+    .hero .subtitle {
+        font-size: 1rem;
+    }
+    
+    .features h2,
+    .how-it-works h2,
+    .storage-options h2,
+    .final-cta h2 {
+        font-size: 2rem;
+    }
+    
+    .feature-grid,
+    .options-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Mobile phones */
+@media (max-width: 480px) {
+    .hero {
+        padding: 4rem 0 3rem;
+    }
+    
+    .hero h1 {
+        font-size: 2rem;
+    }
+    
+    .btn {
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+    }
+    
+    .cta-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .cta-buttons .btn {
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
