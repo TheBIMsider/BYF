@@ -1,4 +1,4 @@
-# BribeYourselfFit - Gamified Fitness Tracker
+# BribeYourselfFit - Gamified Fitness Tracker <a href="https://github.com/thebimsider/BYF/releases/tag/v1.1.0"><img src="https://img.shields.io/badge/v1.1.0-release-brightgreen" alt="v1.1.0" /></a>
 
 > 🎯 **Open-source, self-hosted fitness tracking with streak-based motivation**
 
